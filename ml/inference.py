@@ -108,3 +108,70 @@ def predict_batch(batch_input: BatchPredictionInput):
         logger.error(f"Batch prediction failed: {e}")
         MODEL_PREDICTION_ERROR.inc()
         raise HTTPException(status_code=500, detail="Batch processing failed")
+
+# ---------------------------------------------------------
+# Knowledge Graph API Endpoints
+# ---------------------------------------------------------
+from ml.kg_utils import get_connector
+
+@app.get("/disease/{name}/graph")
+def get_disease_graph(name: str):
+    """Retrieve the knowledge graph neighborhood for a specific disease."""
+    connector = get_connector()
+    query = """
+    MATCH (d:Disease {name: $name})-[r]-(n)
+    RETURN d, r, n
+    LIMIT 50
+    """
+    try:
+        data = connector.run_query(query, {"name": name})
+        if not data:
+            raise HTTPException(status_code=404, detail="Disease not found in Knowledge Graph")
+        return {"disease": name, "graph_data": data}
+    except Exception as e:
+        logger.error(f"KG Query failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        connector.close()
+
+@app.get("/validate/coverage/{learning_objective_id}")
+def validate_coverage(learning_objective_id: str):
+    """Check which diseases are covered by a specific learning objective."""
+    connector = get_connector()
+    query = """
+    MATCH (l:LearningObjective {id: $lo_id})-[:COVERS]->(d:Disease)
+    RETURN d.name as disease, d.confidence_score as confidence
+    """
+    try:
+        data = connector.run_query(query, {"lo_id": learning_objective_id})
+        return {
+            "learning_objective_id": learning_objective_id,
+            "covered_diseases": data,
+            "coverage_count": len(data)
+        }
+    except Exception as e:
+        logger.error(f"KG Query failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        connector.close()
+
+@app.get("/learning-path/{exam_id}")
+def get_learning_path(exam_id: str):
+    """Generate a learning path for a specific exam based on LO dependencies."""
+    connector = get_connector()
+    query = """
+    MATCH (l:LearningObjective)-[:ASSESSED_IN]->(e:Exam {id: $exam_id})
+    RETURN l.text as objective, l.taxonomy_level as level
+    ORDER BY l.id ASC
+    """
+    try:
+        data = connector.run_query(query, {"exam_id": exam_id})
+        return {
+            "exam_id": exam_id,
+            "path": data
+        }
+    except Exception as e:
+        logger.error(f"KG Query failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        connector.close()
