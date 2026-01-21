@@ -4,27 +4,59 @@ import sys
 import os
 
 # Add root to path so ml.model can be imported
+# This is necessary because the tests are often run from the project root or the tests directory,
+# and we need to ensure the 'ml' module is resolvable.
 sys.path.append(os.getcwd())
 
 client = TestClient(app)
 
 def test_health():
+    """
+    Test the health check endpoint (/health).
+    
+    Verifies:
+    - Status code is 200 (OK).
+    - Response body indicates 'healthy' status and correct service name.
+    """
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "healthy", "service": "ml-inference"}
 
 def test_metrics():
+    """
+    Test the Prometheus metrics endpoint (/metrics).
+    
+    Verifies:
+    - Status code is 200 (OK).
+    - Response contains the expected specific metric key 'inference_request_total'.
+    """
     response = client.get("/metrics")
     assert response.status_code == 200
     assert "inference_request_total" in response.text
 
 def test_predict_single():
+    """
+    Test the single prediction endpoint (/predict).
+    
+    Verifies:
+    - Status code is 200 (OK).
+    - The model logic returns the expected result (simulation: input * 2).
+    - The response includes the model version metadata.
+    """
     response = client.post("/predict", json={"data": 5})
     assert response.status_code == 200
     assert response.json()["result"] == 10
     assert response.json()["model_version"] == "v2.1"
 
 def test_predict_batch():
+    """
+    Test the batch prediction endpoint (/batch-predict).
+    
+    Verifies:
+    - Status code is 200 (OK).
+    - The response contains results for all input items.
+    - Each result matches the expected logic (simulation: input * 2).
+    """
     payload = {
         "inputs": [
             {"data": 2},

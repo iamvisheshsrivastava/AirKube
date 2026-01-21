@@ -9,6 +9,17 @@ from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_
 from ml.model import predict
 from ml.schemas import PredictionInput, PredictionOutput, BatchPredictionInput, BatchPredictionOutput
 
+"""
+AirKube Inference Service
+
+This module provides the FastAPI application for:
+1. Model Inference: Serving real-time and batch predictions.
+2. Observability: Exposing Prometheus metrics (request counts, latency) and health checks.
+3. Knowledge Graph Access: Querying the Neo4j database for medical entity relationships.
+
+It uses a middleware to auto-instrument all incoming HTTP requests for monitoring.
+"""
+
 # Configure Structured Logging
 logging.basicConfig(
     level=logging.INFO,
@@ -38,6 +49,14 @@ MODEL_PREDICTION_ERROR = Counter(
 
 @app.middleware("http")
 async def monitor_requests(request: Request, call_next):
+    """
+    Middleware to intercept, log, and time every request.
+    
+    - Captures request method and endpoint.
+    - Measures execution time (latency).
+    - Updates Prometheus counters (requests total) and histograms (latency).
+    - Handles exceptions by incrementing 500 status counters appropriately.
+    """
     method = request.method
     endpoint = request.url.path
     
@@ -116,7 +135,12 @@ from ml.kg_utils import get_connector
 
 @app.get("/disease/{name}/graph")
 def get_disease_graph(name: str):
-    """Retrieve the knowledge graph neighborhood for a specific disease."""
+    """
+    Retrieve the knowledge graph neighborhood for a specific disease.
+    
+    Executes a Cypher query to find the Disease node by name and all directly 
+    connected relationships and nodes (up to a limit of 50).
+    """
     connector = get_connector()
     query = """
     MATCH (d:Disease {name: $name})-[r]-(n)
@@ -136,7 +160,15 @@ def get_disease_graph(name: str):
 
 @app.get("/validate/coverage/{learning_objective_id}")
 def validate_coverage(learning_objective_id: str):
-    """Check which diseases are covered by a specific learning objective."""
+    """
+    Check which diseases are covered by a specific learning objective.
+    
+    Args:
+        learning_objective_id (str): The unique ID of the Learning Objective.
+        
+    Returns:
+        JSON object containing the list of covered diseases and their confidence scores.
+    """
     connector = get_connector()
     query = """
     MATCH (l:LearningObjective {id: $lo_id})-[:COVERS]->(d:Disease)

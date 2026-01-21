@@ -17,6 +17,13 @@ NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
 
 class Neo4jConnector:
+    """
+    Wrapper for Neo4j database connection.
+    
+    If the 'neo4j' python package is not installed or connection fails, 
+    this class gracefully degrades to a 'Simulation Mode', logging queries 
+    instead of executing them.
+    """
     def __init__(self):
         self.driver = None
         if NEO4J_AVAILABLE:

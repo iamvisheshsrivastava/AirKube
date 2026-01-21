@@ -7,6 +7,13 @@ logger = logging.getLogger("kg_ingestion")
 def ingest_graph(extraction: ExtractionResult, model_version: str):
     """
     Ingests the validated extraction result into Neo4j using idempotent MERGE queries.
+    
+    This function takes an ExtractionResult object containing structured entities (Diseases, 
+    Symptoms, Drugs, etc.) and relationships, and persists them into a Neo4j graph database.
+    
+    Args:
+        extraction (ExtractionResult): The Pydantic model containing extracted graph data.
+        model_version (str): The version of the model that performed the extraction, used for provenance.
     """
     connector = get_connector()
     
@@ -27,6 +34,8 @@ def ingest_graph(extraction: ExtractionResult, model_version: str):
         connector.run_query(disease_query, {"batch": diseases_data})
 
     # Symptoms
+    # Query uses UNWIND to process batch insertions efficiently.
+    # MERGE ensures nodes are created only if they don't exist (idempotency).
     symptom_query = """
     UNWIND $batch AS mapped
     MERGE (s:Symptom {id: mapped.id})
@@ -73,9 +82,10 @@ def ingest_graph(extraction: ExtractionResult, model_version: str):
     logger.info("Ingesting relationships...")
     
     # Generic relationship ingestion using APOC-style logic or explicit MATCH-MERGE
-    # For safety/simplicity without APOC, we iterate types. 
-    # But effectively, we can use a dynamic Cypher string for the REL type if careful, 
-    # OR standard pattern since our Relationships list has 'type' field.
+    # We iterate over relationships and construct a specific MERGE query for the relationship type.
+    # Note: Dynamic construction of Cypher queries (f-strings) should typically be avoided for user input,
+    # but here 'rel.type' comes from a controlled/trusted schema (ExtractionResult), reducing injection risk.
+    # Standard parametrization is used for all property values.
     
     # Since Cypher can't assign dynamic types in MERGE easily without APOC:
     # We will loop in python or use specific queries for expected types.

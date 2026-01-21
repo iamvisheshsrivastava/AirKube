@@ -19,7 +19,11 @@ CONSTRAINTS:
 def extract_entities_from_text(text: str) -> ExtractionResult:
     """
     Simulates sending text to an LLM (e.g., GPT-4) and parsing the JSON response.
-    In a real scenario, this would use `openai.ChatCompletion`.
+    
+    In a real production scenario, this function would:
+    1. Construct a message payload with the `SYSTEM_PROMPT` and user text.
+    2. Call `openai.ChatCompletion.create()` (or equivalent).
+    3. Handle retries for rate limits or malformed JSON.
     """
     logger.info(f"Extracting knowledge from text segment ({len(text)} chars)...")
     

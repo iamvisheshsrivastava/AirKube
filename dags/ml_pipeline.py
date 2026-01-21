@@ -10,11 +10,18 @@ import mlflow
 import os
 
 # Define MLflow Experiment
+# This sets the experiment name under which all runs in this DAG will be logged.
+# If the experiment does not exist, MLflow will create it.
 MLFLOW_EXPERIMENT = "AirKube_Experiment"
 mlflow.set_experiment(MLFLOW_EXPERIMENT)
 
 def validate_data(**context):
-    """Simulate data validation step."""
+    """
+    Simulate data validation step.
+    
+    This task simulates connecting to a data source and validating the schema.
+    It includes a simulated random failure mechanism to test pipeline error handling.
+    """
     print("Connecting to data source...")
     time.sleep(1)
     print("Validating schema...")
@@ -24,7 +31,17 @@ def validate_data(**context):
     print("Data validation successful.")
 
 def train_model(**context):
-    """Simulate model training and metric generation with MLflow logging."""
+    """
+    Simulate model training and metric generation with MLflow logging.
+    
+    This function:
+    1. Starts an MLflow run.
+    2. Logs hyperparameters (epochs, learning_rate, batch_size).
+    3. Simulates model training time.
+    4. Generates random metrics (accuracy, loss) and logs them.
+    5. Creates and logs a dummy model artifact.
+    6. Pushes key metrics (accuracy, run_id) to XCom for downstream tasks.
+    """
     print("Initializing training job...")
     
     with mlflow.start_run() as run:
@@ -60,7 +77,15 @@ def train_model(**context):
         context['ti'].xcom_push(key='mlflow_run_id', value=run_id)
 
 def evaluate_model(**context):
-    """Decide whether to proceed to registry based on model accuracy."""
+    """
+    Decide whether to proceed to registry based on model accuracy.
+    
+    Retrieves the 'accuracy' metric from XCom (pushed by 'train_model').
+    Compares it against a predefined threshold (0.82).
+    
+    Returns:
+        str: The task_id of the next task to execute ('register_model' or 'notify_training_failure').
+    """
     accuracy = context['ti'].xcom_pull(task_ids='train_model', key='model_accuracy')
     threshold = 0.82
     
@@ -74,7 +99,13 @@ def evaluate_model(**context):
         return 'notify_training_failure'
 
 def register_model(**context):
-    """Register the model in MLflow Model Registry."""
+    """
+    Register the model in MLflow Model Registry.
+    
+    Retrieves the run_id from XCom.
+    Simulates the registration process and generates a version number based on the timestamp.
+    Pushes the generated version to XCom for deployment tasks.
+    """
     run_id = context['ti'].xcom_pull(task_ids='train_model', key='mlflow_run_id')
     model_name = "AirKube_Model"
     
@@ -165,7 +196,12 @@ with DAG(
     end_failure = EmptyOperator(task_id='pipeline_aborted')
 
     # Wiring the DAG
+    # Wiring the DAG
+    # 1. Standard happy path: Start -> Validate -> Train -> Evaluate
     start >> validate >> train >> evaluate
     
+    # 2. Conditional Branching from Evaluate:
+    #    - If success: Register -> Build Image -> Deploy -> End Success
+    #    - If fail: Notify Failure -> End Failure
     evaluate >> register >> build_image >> deploy_k8s >> end_success
     evaluate >> notify_failure >> end_failure
