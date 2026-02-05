@@ -1,4 +1,4 @@
-# 🚨 <span style="color:red">IN PROGRESS</span> 🚨
+
 
 # AirKube
 
@@ -40,11 +40,22 @@ A lightweight, production-grade API framework for model serving (`ml/inference.p
 - `k8s/`: Kubernetes manifest files for deployment.
 - `tests/`: Unit and integration tests.
 
-## Future Extensions & Roadmap
-The vision for AirKube includes evolving into a comprehensive **Agentic AI Platform**:
+## Agentic Capabilities (NEW 🚀)
 
-1.  **LangGraph Integration**: Incorporating LangGraph to build stateful multi-agent workflows.
-2.  **Agentic Orchestration**: Replacing static rules with an intelligent `Plan-Act-Observe-Reflect` agent loop.
+AirKube now includes an autonomous agent powered by **LangGraph** and **OpenAI**. The agent can:
+- Trigger Airflow ML pipelines based on natural language requests.
+- **Smart Schema Awareness**: Automatically inspects the KG schema before querying to ensure accurate Cypher generation.
+- **Real-Time Health Checks**: Verifies connectivity to the Inference API and other components.
+- Query the Neo4j Knowledge Graph to answer questions about models, experiments, and deployments.
+
+### Running the Agent
+1. Install dependencies: `pip install -r requirements.txt`
+2. Set your API Key: `export OPENAI_API_KEY=sk-...` (or set in `.env`)
+3. Run the CLI: `python run_agent.py`
+
+## Future Extensions & Roadmap
+1.  **LangGraph Integration**: ✅ Implemented.
+2.  **Agentic Orchestration**: ✅ Implemented (`agent/graph.py`).
 3.  **Real ML Models**: Replacing simulations with actual PyTorch/TensorFlow training jobs.
-4.  **RAG Capability**: Adding Retrieval-Augmented Generation for smarter context-aware agents.
+4.  **RAG Capability**: Deepening the KG integration for smarter context.
 5.  **Advanced Monitoring**: Full integration with a Grafana dashboard consuming the Prometheus metrics.

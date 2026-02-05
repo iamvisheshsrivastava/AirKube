@@ -19,18 +19,18 @@ def extract_knowledge(**context):
     """
     Simulates fetching a document and running LLM extraction.
     """
-    logger.info("Fetching unstructured medical text...")
+    logger.info("Fetching unstructured MLOps text...")
     sample_text = """
-    Acute myocardial infarction (MI) is a serious condition where blood flow to the heart is blocked.
-    Common symptoms include severe chest pain, shortness of breath, and diaphoresis.
-    Immediate treatment often involves Aspirin to reduce clotting.
+    We have successfully trained ResNet50 v2 using PyTorch. The experiment 'Vision Upgrade 2024' is active.
+    Run #101 completed with 92% accuracy and 0.21 loss.
+    The model is currently deployed to the US-East K8s cluster as 'dep_prod_vision' with 3 replicas.
     """
     
     with mlflow.start_run(run_name="KG_Extraction"):
         extraction = extract_entities_from_text(sample_text)
         
         # Log basic stats
-        mlflow.log_metric("entities_extracted", len(extraction.diseases) + len(extraction.symptoms))
+        mlflow.log_metric("entities_extracted", len(extraction.models) + len(extraction.runs) + len(extraction.deployments))
         
         # Pass data to XCom (serializing Pydantic to JSON dicts)
         context['ti'].xcom_push(key='extraction_result', value=extraction.dict())
@@ -75,12 +75,12 @@ default_args = {
 }
 
 with DAG(
-    dag_id="medical_kg_pipeline",
+    dag_id="mlops_kg_pipeline",
     start_date=datetime(2024, 1, 1),
     schedule_interval="@daily",
     catchup=False,
     default_args=default_args,
-    tags=['kg', 'neo4j', 'llm', 'medical']
+    tags=['kg', 'neo4j', 'llm', 'mlops']
 ) as dag:
 
     start = EmptyOperator(task_id='start_extraction')

@@ -1,112 +1,90 @@
 import logging
+import json
 from ml.kg_schemas import ExtractionResult
 from ml.kg_utils import get_connector
 
 logger = logging.getLogger("kg_ingestion")
 
-def ingest_graph(extraction: ExtractionResult, model_version: str):
+def ingest_graph(extraction: ExtractionResult, model_version: str = "unknown"):
     """
-    Ingests the validated extraction result into Neo4j using idempotent MERGE queries.
-    
-    This function takes an ExtractionResult object containing structured entities (Diseases, 
-    Symptoms, Drugs, etc.) and relationships, and persists them into a Neo4j graph database.
-    
-    Args:
-        extraction (ExtractionResult): The Pydantic model containing extracted graph data.
-        model_version (str): The version of the model that performed the extraction, used for provenance.
+    Ingests the validated MLOps extraction result into Neo4j.
     """
     connector = get_connector()
     
     # 1. Ingest Nodes
     logger.info("Ingesting nodes...")
     
-    # Parametrized Cypher for Diseases
-    disease_query = """
+    # Models
+    model_query = """
     UNWIND $batch AS mapped
-    MERGE (d:Disease {id: mapped.id})
-    SET d.name = mapped.name,
-        d.confidence_score = mapped.confidence_score,
-        d.source_text = mapped.source_text,
-        d.last_updated = datetime()
+    MERGE (m:Model {id: mapped.id})
+    SET m.name = mapped.name,
+        m.version = mapped.version,
+        m.framework = mapped.framework,
+        m.description = mapped.description,
+        m.last_updated = datetime()
     """
-    diseases_data = [d.dict() for d in extraction.diseases]
-    if diseases_data:
-        connector.run_query(disease_query, {"batch": diseases_data})
+    models_data = [d.dict() for d in extraction.models]
+    if models_data:
+        connector.run_query(model_query, {"batch": models_data})
 
-    # Symptoms
-    # Query uses UNWIND to process batch insertions efficiently.
-    # MERGE ensures nodes are created only if they don't exist (idempotency).
-    symptom_query = """
+    # Experiments
+    experiment_query = """
     UNWIND $batch AS mapped
-    MERGE (s:Symptom {id: mapped.id})
-    SET s.name = mapped.name,
-        s.severity = mapped.severity
+    MERGE (e:Experiment {id: mapped.id})
+    SET e.name = mapped.name,
+        e.status = mapped.status,
+        e.created_at = datetime()
     """
-    symptoms_data = [s.dict() for s in extraction.symptoms]
-    if symptoms_data:
-        connector.run_query(symptom_query, {"batch": symptoms_data})
+    experiments_data = [e.dict() for e in extraction.experiments]
+    if experiments_data:
+        connector.run_query(experiment_query, {"batch": experiments_data})
         
-    # Drugs
-    drug_query = """
+    # Runs
+    # Metrics and Parameters are stored as JSON strings or properties
+    run_query = """
     UNWIND $batch AS mapped
-    MERGE (d:Drug {id: mapped.id})
-    SET d.name = mapped.name
+    MERGE (r:Run {id: mapped.id})
+    SET r.name = mapped.name,
+        r.status = mapped.status,
+        r.metrics = mapped.metrics,  
+        r.parameters = mapped.parameters
     """
-    drugs_data = [d.dict() for d in extraction.drugs]
-    if drugs_data:
-        connector.run_query(drug_query, {"batch": drugs_data})
+    # Note: Neo4j can store maps directly if using APOC, but standard cypher handles simple maps or needs serialization.
+    # For now we assume standard driver map support.
+    runs_data = [r.dict() for r in extraction.runs]
+    if runs_data:
+        connector.run_query(run_query, {"batch": runs_data})
         
-    # Anatomy
-    anatomy_query = """
+    # Deployments
+    deployment_query = """
     UNWIND $batch AS mapped
-    MERGE (a:Anatomy {id: mapped.id})
-    SET a.name = mapped.name,
-        a.system = mapped.system
+    MERGE (d:Deployment {id: mapped.id})
+    SET d.name = mapped.name,
+        d.cluster = mapped.cluster,
+        d.image = mapped.image,
+        d.replicas = mapped.replicas
     """
-    anatomy_data = [a.dict() for a in extraction.anatomy]
-    if anatomy_data:
-        connector.run_query(anatomy_query, {"batch": anatomy_data})
-        
-    # Learning Objectives
-    lo_query = """
-    UNWIND $batch AS mapped
-    MERGE (l:LearningObjective {id: mapped.id})
-    SET l.text = mapped.text,
-        l.taxonomy_level = mapped.taxonomy_level
-    """
-    lo_data = [l.dict() for l in extraction.learning_objectives]
-    if lo_data:
-        connector.run_query(lo_query, {"batch": lo_data})
+    deployments_data = [d.dict() for d in extraction.deployments]
+    if deployments_data:
+        connector.run_query(deployment_query, {"batch": deployments_data})
 
     # 2. Ingest Relationships
     logger.info("Ingesting relationships...")
-    
-    # Generic relationship ingestion using APOC-style logic or explicit MATCH-MERGE
-    # We iterate over relationships and construct a specific MERGE query for the relationship type.
-    # Note: Dynamic construction of Cypher queries (f-strings) should typically be avoided for user input,
-    # but here 'rel.type' comes from a controlled/trusted schema (ExtractionResult), reducing injection risk.
-    # Standard parametrization is used for all property values.
-    
-    # Since Cypher can't assign dynamic types in MERGE easily without APOC:
-    # We will loop in python or use specific queries for expected types.
-    # Allowing dynamic types for extensibility here:
     
     for rel in extraction.relationships:
         query = f"""
         MATCH (s {{id: $source_id}}), (t {{id: $target_id}})
         MERGE (s)-[r:{rel.type}]->(t)
         SET r += $props,
-            r.confidence = $confidence,
-            r.extracted_by = $model,
             r.ingested_at = datetime()
         """
         connector.run_query(query, {
             "source_id": rel.source_id,
             "target_id": rel.target_id,
-            "props": rel.properties,
-            "confidence": rel.confidence,
-            "model": model_version
+            "props": rel.properties
         })
     
     logger.info("Ingestion complete.")
     connector.close()
+
