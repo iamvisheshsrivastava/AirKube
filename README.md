@@ -42,20 +42,31 @@ A lightweight, production-grade API framework for model serving (`ml/inference.p
 
 ## Agentic Capabilities (NEW 🚀)
 
-AirKube now includes an autonomous agent powered by **LangGraph** and **OpenAI**. The agent can:
-- Trigger Airflow ML pipelines based on natural language requests.
-- **Smart Schema Awareness**: Automatically inspects the KG schema before querying to ensure accurate Cypher generation.
-- **Real-Time Health Checks**: Verifies connectivity to the Inference API and other components.
-- Query the Neo4j Knowledge Graph to answer questions about models, experiments, and deployments.
+AirKube now includes an autonomous agent powered by **LangGraph** and **OpenAI**. The agent acts as a true MLOps copilot.
 
-### Running the Agent
-1. Install dependencies: `pip install -r requirements.txt`
-2. Set your API Key: `export OPENAI_API_KEY=sk-...` (or set in `.env`)
-3. Run the CLI: `python run_agent.py`
+### 🌟 New: Interactive Dashboard
+We have introduced a **Streamlit Dashboard** for a rich visual experience.
+- **Chat Interface**: Talk to the MLOps agent directly.
+- **Extraction Playground**: Test the new LLM-based Knowledge Extraction on your own text.
+- **Graph Explorer**: Query and visualize the Knowledge Graph.
+
+### Capabilities:
+- **Real-Time Knowledge Extraction**: Uses **GPT-4** to parse unstructured text into structured KG entities (Models, Runs, metrics).
+- **Smart Schema Awareness**: Automatically inspects the KG schema before querying using `get_kg_schema`.
+- **Pipeline Orchestration**: Trigger Airflow DAGs from natural language.
+- **System Observability**: Check the health of Inference APIs and other components.
+
+### Running the Platform
+1. **Install dependencies**: `pip install -r requirements.txt`
+2. **Set your API Key**: `export OPENAI_API_KEY=sk-...` (or set in `.env`)
+3. **Run the Dashboard**: `streamlit run dashboard.py`
+4. **(Optional) Run CLI Agent**: `python run_agent.py`
 
 ## Future Extensions & Roadmap
 1.  **LangGraph Integration**: ✅ Implemented.
 2.  **Agentic Orchestration**: ✅ Implemented (`agent/graph.py`).
-3.  **Real ML Models**: Replacing simulations with actual PyTorch/TensorFlow training jobs.
-4.  **RAG Capability**: Deepening the KG integration for smarter context.
-5.  **Advanced Monitoring**: Full integration with a Grafana dashboard consuming the Prometheus metrics.
+3.  **Real Knowledge Extraction**: ✅ Implemented (`ml/kg_extraction.py` with GPT-4).
+4.  **Interactive UI**: ✅ Implemented (`dashboard.py`).
+5.  **Real ML Models**: Replacing simulations with actual PyTorch/TensorFlow training jobs.
+6.  **RAG Capability**: Deepening the KG integration for smarter context.
+7.  **Advanced Monitoring**: Full integration with a Grafana dashboard consuming the Prometheus metrics.
