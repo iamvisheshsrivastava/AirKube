@@ -62,6 +62,11 @@ We have introduced a **Streamlit Dashboard** for a rich visual experience.
 3. **Run the Dashboard**: `streamlit run dashboard.py`
 4. **(Optional) Run CLI Agent**: `python run_agent.py`
 
+### 🧪 Tests & CI/CD
+This project includes a comprehensive test suite and GitHub Actions workflow.
+- **Run Tests**: `pytest`
+- **CI/CD**: Automatically runs tests and linting on every push to `main`.
+
 ## Future Extensions & Roadmap
 1.  **LangGraph Integration**: ✅ Implemented.
 2.  **Agentic Orchestration**: ✅ Implemented (`agent/graph.py`).

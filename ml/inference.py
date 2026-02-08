@@ -64,6 +64,12 @@ async def monitor_requests(request: Request, call_next):
     
     try:
         response = await call_next(request)
+        
+        # Access the route template if available (e.g., /disease/{name}/graph) to avoid high cardinality
+        route = request.scope.get("route")
+        if route:
+            endpoint = route.path
+            
         status_code = response.status_code
         REQUEST_COUNT.labels(method=method, endpoint=endpoint, status=status_code).inc()
         return response
@@ -71,6 +77,12 @@ async def monitor_requests(request: Request, call_next):
         REQUEST_COUNT.labels(method=method, endpoint=endpoint, status=500).inc()
         raise e
     finally:
+        # Also update route for latency if possible (though scope might be updated after response)
+        # Note: request.scope['route'] is only available after routing. 
+        # For middleware, it's often available after call_next returns if the app matched it.
+        if request.scope.get("route"):
+             endpoint = request.scope["route"].path
+             
         duration = time.time() - start_time
         REQUEST_LATENCY.labels(endpoint=endpoint).observe(duration)
 
