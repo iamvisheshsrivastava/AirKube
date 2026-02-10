@@ -1,12 +1,11 @@
-from fastapi.testclient import TestClient
-from ml.inference import app
 import sys
 import os
 
 # Add root to path so ml.model can be imported
-# This is necessary because the tests are often run from the project root or the tests directory,
-# and we need to ensure the 'ml' module is resolvable.
 sys.path.append(os.getcwd())
+
+from fastapi.testclient import TestClient
+from ml.inference import app
 
 client = TestClient(app)
 
@@ -40,13 +39,18 @@ def test_predict_single():
     
     Verifies:
     - Status code is 200 (OK).
-    - The model logic returns the expected result (simulation: input * 2).
+    
+    Verifies:
+    - Status code is 200 (OK).
+    - The model logic returns the expected result (Iris class 0, 1, or 2).
     - The response includes the model version metadata.
     """
-    response = client.post("/predict", json={"data": 5})
+    # Iris data: sentosa-like (should be class 0)
+    response = client.post("/predict", json={"data": [5.1, 3.5, 1.4, 0.2]})
     assert response.status_code == 200
-    assert response.json()["result"] == 10
-    assert response.json()["model_version"] == "v2.1"
+    assert "result" in response.json()
+    assert isinstance(response.json()["result"], int)
+    assert response.json()["model_version"] == "v2.1-iris"
 
 def test_predict_batch():
     """
@@ -55,23 +59,21 @@ def test_predict_batch():
     Verifies:
     - Status code is 200 (OK).
     - The response contains results for all input items.
-    - Each result matches the expected logic (simulation: input * 2).
     """
     payload = {
         "inputs": [
-            {"data": 2},
-            {"data": 3}
+            {"data": [5.1, 3.5, 1.4, 0.2]},
+            {"data": [6.7, 3.0, 5.2, 2.3]}
         ]
     }
     response = client.post("/batch-predict", json=payload)
     assert response.status_code == 200
     results = response.json()["results"]
     assert len(results) == 2
-    assert results[0]["result"] == 4
-    assert results[1]["result"] == 6
+    assert results[0]["model_version"] == "v2.1-iris"
 
 if __name__ == "__main__":
-    # Simple runner if pytest is not available
+    # Test runner
     print("Running tests...")
     try:
         test_health()

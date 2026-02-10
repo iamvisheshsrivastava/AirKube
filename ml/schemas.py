@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 
 class PredictionInput(BaseModel):
-    data: int = Field(..., description="Input data for prediction")
+    data: List[float] = Field(..., description="Input data for prediction (List of 4 floats for Iris)")
 
 class PredictionOutput(BaseModel):
     result: int

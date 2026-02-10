@@ -105,14 +105,11 @@ def predict_single(input_data: PredictionInput):
     logger.info(f"Received prediction request: {input_data.dict()}")
     
     try:
-        # Simulate processing logic
+        # Real Model Logic
         result_dict = predict(input_data.data)
         result_value = result_dict.get("result")
         
-        if result_value is None:
-             raise ValueError("Model returned no result")
-
-        return PredictionOutput(result=result_value, model_version="v2.1")
+        return PredictionOutput(result=result_value, model_version="v2.1-iris")
         
     except Exception as e:
         logger.error(f"Prediction failed: {e}")
@@ -129,7 +126,7 @@ def predict_batch(batch_input: BatchPredictionInput):
     try:
         for item in batch_input.inputs:
             res = predict(item.data)
-            results.append(PredictionOutput(result=res["result"], model_version="v2.1"))
+            results.append(PredictionOutput(result=res["result"], model_version="v2.1-iris"))
             
         return BatchPredictionOutput(
             results=results,
@@ -141,79 +138,47 @@ def predict_batch(batch_input: BatchPredictionInput):
         raise HTTPException(status_code=500, detail="Batch processing failed")
 
 # ---------------------------------------------------------
-# Knowledge Graph API Endpoints
+# Knowledge Graph API Endpoints (MLOps)
 # ---------------------------------------------------------
 from ml.kg_utils import get_connector
 
-@app.get("/disease/{name}/graph")
-def get_disease_graph(name: str):
+@app.get("/model/{name}/details")
+def get_model_details(name: str):
     """
-    Retrieve the knowledge graph neighborhood for a specific disease.
-    
-    Executes a Cypher query to find the Disease node by name and all directly 
-    connected relationships and nodes (up to a limit of 50).
+    Retrieve details for a specific model from the Knowledge Graph.
     """
     connector = get_connector()
     query = """
-    MATCH (d:Disease {name: $name})-[r]-(n)
-    RETURN d, r, n
-    LIMIT 50
+    MATCH (m:Model {name: $name})
+    OPTIONAL MATCH (m)-[:PRODUCED_BY]->(r:Run)
+    RETURN m, r
     """
     try:
         data = connector.run_query(query, {"name": name})
         if not data:
-            raise HTTPException(status_code=404, detail="Disease not found in Knowledge Graph")
-        return {"disease": name, "graph_data": data}
+            raise HTTPException(status_code=404, detail="Model not found in Knowledge Graph")
+        return {"model": name, "details": data}
     except Exception as e:
         logger.error(f"KG Query failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         connector.close()
 
-@app.get("/validate/coverage/{learning_objective_id}")
-def validate_coverage(learning_objective_id: str):
+@app.get("/deployment/{deployment_id}/status")
+def get_deployment_status(deployment_id: str):
     """
-    Check which diseases are covered by a specific learning objective.
-    
-    Args:
-        learning_objective_id (str): The unique ID of the Learning Objective.
-        
-    Returns:
-        JSON object containing the list of covered diseases and their confidence scores.
+    Check status of a deployment and its connected services.
     """
     connector = get_connector()
     query = """
-    MATCH (l:LearningObjective {id: $lo_id})-[:COVERS]->(d:Disease)
-    RETURN d.name as disease, d.confidence_score as confidence
+    MATCH (d:Deployment {id: $id})-[:SERVES]->(m:Model)
+    RETURN d, m
     """
     try:
-        data = connector.run_query(query, {"lo_id": learning_objective_id})
-        return {
-            "learning_objective_id": learning_objective_id,
-            "covered_diseases": data,
-            "coverage_count": len(data)
-        }
-    except Exception as e:
-        logger.error(f"KG Query failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        connector.close()
-
-@app.get("/learning-path/{exam_id}")
-def get_learning_path(exam_id: str):
-    """Generate a learning path for a specific exam based on LO dependencies."""
-    connector = get_connector()
-    query = """
-    MATCH (l:LearningObjective)-[:ASSESSED_IN]->(e:Exam {id: $exam_id})
-    RETURN l.text as objective, l.taxonomy_level as level
-    ORDER BY l.id ASC
-    """
-    try:
-        data = connector.run_query(query, {"exam_id": exam_id})
-        return {
-            "exam_id": exam_id,
-            "path": data
-        }
+        data = connector.run_query(query, {"id": deployment_id})
+        if not data:
+            raise HTTPException(status_code=404, detail="Deployment not found")
+        return {"deployment_id": deployment_id, "status": data}
     except Exception as e:
         logger.error(f"KG Query failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -8,3 +8,22 @@ services:
     environment:
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
     command: standalone
+
+  neo4j:
+    image: neo4j:5.15.0
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/password
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=password
+    depends_on:
+      - neo4j
