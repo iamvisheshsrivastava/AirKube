@@ -43,6 +43,10 @@ def train_model(**context):
     6. Pushes key metrics (accuracy, run_id) to XCom for downstream tasks.
     """
     print("Initializing training job...")
+    dag_run = context.get("dag_run")
+    news_dataset_table = None
+    if dag_run and getattr(dag_run, "conf", None):
+        news_dataset_table = dag_run.conf.get("news_processed_table")
     
     with mlflow.start_run() as run:
         # Simulate training parameters
@@ -51,6 +55,8 @@ def train_model(**context):
             "learning_rate": 0.01,
             "batch_size": 32
         }
+        if news_dataset_table:
+            params["news_processed_table"] = news_dataset_table
         mlflow.log_params(params)
         
         time.sleep(2)
@@ -75,6 +81,8 @@ def train_model(**context):
         # Push metrics involved in decision making to XCom
         context['ti'].xcom_push(key='model_accuracy', value=accuracy)
         context['ti'].xcom_push(key='mlflow_run_id', value=run_id)
+        if news_dataset_table:
+            context['ti'].xcom_push(key='news_processed_table', value=news_dataset_table)
 
 def evaluate_model(**context):
     """

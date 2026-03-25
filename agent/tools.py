@@ -28,6 +28,20 @@ def trigger_ml_pipeline(pipeline_name: str = "enhanced_ml_pipeline", parameters:
     
     return f"Successfully triggered pipeline '{pipeline_name}'. Execution ID: {exec_id}. Monitor status in Airflow UI."
 
+
+@tool
+def trigger_news_data_pipeline(pipeline_name: str = "news_data_pipeline", parameters: dict = None):
+    """
+    Triggers the news ETL/ELT pipeline in Airflow.
+    """
+    import time
+    import uuid
+
+    exec_id = f"manual__{time.strftime('%Y-%m-%dT%H:%M:%S')}_{str(uuid.uuid4())[:8]}"
+    logger.info(f"Triggering Airflow DAG '{pipeline_name}' with params: {parameters}")
+
+    return f"Successfully triggered pipeline '{pipeline_name}'. Execution ID: {exec_id}. Monitor status in Airflow UI."
+
 @tool
 def get_kg_schema():
     """

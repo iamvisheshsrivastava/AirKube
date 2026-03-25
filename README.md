@@ -9,6 +9,8 @@ AirKube is a modular MLOps platform designed to demonstrate the lifecycle of Mac
 
 Currently, the project features a functional **ML Pipeline** that simulates critical MLOps stages—from Data Validation to Deployment—and a production-ready **Inference API** with built-in observability.
 
+It also now includes a production-style **News ETL/ELT pipeline** that ingests public news data into **GCS** and **BigQuery** for downstream analytics and ML consumption.
+
 ## Key Features
 
 ### 1. Enhanced ML Pipeline (Airflow)
@@ -31,11 +33,23 @@ A lightweight, production-grade API framework for model serving (`ml/inference.p
 - **Observability**: Custom middleware tracks request counts, latency, and error rates.
 - **Validation**: Pydantic schemas ensure data integrity.
 
+### 3. News Data Pipeline (Airflow + GCP)
+A new Airflow DAG (`news_data_pipeline`) that implements a real ETL/ELT flow for public news data:
+- **Incremental Extraction**: Fetches only new NewsAPI articles based on the last successful watermark.
+- **Python Transformations**: Cleans nulls, normalizes timestamps, and removes duplicates before landing raw data.
+- **GCS Landing Zone**: Writes raw JSONL batches to Google Cloud Storage.
+- **BigQuery Raw + Processed Tables**: Loads raw data into BigQuery and materializes processed tables with SQL.
+- **ELT SQL**: Builds a sentiment-ready dataset and daily article counts inside BigQuery.
+- **ML Integration**: Passes the processed BigQuery table reference into `enhanced_ml_pipeline` for downstream use.
+
 ## Project Structure
 - `dags/`: Airflow DAG definitions (e.g., `ml_pipeline.py`).
 - `ml/`: Source code for the ML logic and FastAPI service.
   - `inference.py`: Main API application.
   - `model.py`: (Simulated) Model logic.
+  - `news_pipeline.py`: News extraction, transformation, and load helpers.
+  - `news_schemas.py`: Structured models for news raw and processed data.
+  - `news_integration.py`: Bridge helpers for ML pipeline handoff.
 - `docker/`: Dockerfiles for containerization.
 - `k8s/`: Kubernetes manifest files for deployment.
 - `tests/`: Unit and integration tests.
@@ -59,8 +73,10 @@ We have introduced a **Streamlit Dashboard** for a rich visual experience.
 ### Running the Platform
 1. **Install dependencies**: `pip install -r requirements.txt`
 2. **Set your API Key**: `export OPENAI_API_KEY=sk-...` (or set in `.env`)
-3. **Run the Dashboard**: `streamlit run dashboard.py`
-4. **(Optional) Run CLI Agent**: `python run_agent.py`
+3. **Configure News Pipeline Secrets**: set `NEWS_API_KEY`, `GCP_PROJECT_ID`, `NEWS_GCS_BUCKET`, and BigQuery dataset/table variables.
+4. **Run the Dashboard**: `streamlit run dashboard.py`
+5. **(Optional) Run CLI Agent**: `python run_agent.py`
+6. **Trigger the News Pipeline**: run the `news_data_pipeline` DAG in Airflow.
 
 ### 🧪 Tests & CI/CD
 This project includes a comprehensive test suite and GitHub Actions workflow.
@@ -72,6 +88,7 @@ This project includes a comprehensive test suite and GitHub Actions workflow.
 2.  **Agentic Orchestration**: ✅ Implemented (`agent/graph.py`).
 3.  **Real Knowledge Extraction**: ✅ Implemented (`ml/kg_extraction.py` with GPT-4).
 4.  **Interactive UI**: ✅ Implemented (`dashboard.py`).
-5.  **Real ML Models**: Replacing simulations with actual PyTorch/TensorFlow training jobs.
-6.  **RAG Capability**: Deepening the KG integration for smarter context.
-7.  **Advanced Monitoring**: Full integration with a Grafana dashboard consuming the Prometheus metrics.
+5.  **News ETL/ELT**: ✅ Implemented (`dags/news_data_pipeline.py`, `ml/news_pipeline.py`).
+6.  **Real ML Models**: Replacing simulations with actual PyTorch/TensorFlow training jobs.
+7.  **RAG Capability**: Deepening the KG integration for smarter context.
+8.  **Advanced Monitoring**: Full integration with a Grafana dashboard consuming the Prometheus metrics.
