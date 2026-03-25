@@ -1,6 +1,9 @@
 import os
 import logging
 import time
+from ml.env import load_env
+
+load_env()
 
 logger = logging.getLogger("kg_utils")
 
@@ -14,7 +17,7 @@ except ImportError:
 
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 
 class Neo4jConnector:
     """
@@ -28,6 +31,9 @@ class Neo4jConnector:
         self.driver = None
         if NEO4J_AVAILABLE:
             try:
+                if not NEO4J_PASSWORD:
+                    logger.warning("NEO4J_PASSWORD not set. KG operations will be simulated.")
+                    return
                 self.driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
             except Exception as e:
                 logger.error(f"Failed to connect to Neo4j: {e}")

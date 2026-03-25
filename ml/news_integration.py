@@ -2,6 +2,10 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Sequence
 
+from ml.env import load_env
+
+load_env()
+
 from ml.news_schemas import ProcessedNewsArticle
 
 

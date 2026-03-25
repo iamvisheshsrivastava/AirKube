@@ -56,7 +56,7 @@ A new Airflow DAG (`news_data_pipeline`) that implements a real ETL/ELT flow for
 
 ## Agentic Capabilities (NEW 🚀)
 
-AirKube now includes an autonomous agent powered by **LangGraph** and **OpenAI**. The agent acts as a true MLOps copilot.
+AirKube now includes an autonomous agent powered by **LangGraph** and **Gemini**. The agent acts as a true MLOps copilot.
 
 ### 🌟 New: Interactive Dashboard
 We have introduced a **Streamlit Dashboard** for a rich visual experience.
@@ -65,14 +65,14 @@ We have introduced a **Streamlit Dashboard** for a rich visual experience.
 - **Graph Explorer**: Query and visualize the Knowledge Graph.
 
 ### Capabilities:
-- **Real-Time Knowledge Extraction**: Uses **GPT-4** to parse unstructured text into structured KG entities (Models, Runs, metrics).
+- **Real-Time Knowledge Extraction**: Uses **Gemini** to parse unstructured text into structured KG entities (Models, Runs, metrics).
 - **Smart Schema Awareness**: Automatically inspects the KG schema before querying using `get_kg_schema`.
 - **Pipeline Orchestration**: Trigger Airflow DAGs from natural language.
 - **System Observability**: Check the health of Inference APIs and other components.
 
 ### Running the Platform
 1. **Install dependencies**: `pip install -r requirements.txt`
-2. **Set your API Key**: `export OPENAI_API_KEY=sk-...` (or set in `.env`)
+2. **Set your API Key**: `export GEMINI_API_KEY=...` (or set in `.env`)
 3. **Configure News Pipeline Secrets**: set `NEWS_API_KEY`, `GCP_PROJECT_ID`, `NEWS_GCS_BUCKET`, and BigQuery dataset/table variables.
 4. **Run the Dashboard**: `streamlit run dashboard.py`
 5. **(Optional) Run CLI Agent**: `python run_agent.py`

@@ -1,6 +1,10 @@
 import os
 import asyncio
-from langchain_core.messages import HumanMessage, SystemMessage
+from ml.env import load_env
+
+load_env()
+
+from langchain.schema import HumanMessage, SystemMessage
 from agent.graph import app
 from rich.console import Console
 from rich.panel import Panel
@@ -20,12 +24,35 @@ Always be concise. If you need to plan complex steps, outline them first.
 If you are answering a user question, use the Knowledge Graph to ground your answer.
 """
 
+
+def _print_stream_event(event):
+    kind = event["event"]
+
+    if kind == "on_chat_model_stream":
+        content = event["data"]["chunk"].content
+        if content:
+            console.print(content, end="", style="cyan")
+    elif kind == "on_tool_start":
+        console.print(f"\n[bold magenta]Using Tool: {event['name']}[/bold magenta]")
+    elif kind == "on_tool_end":
+        console.print(f"[dim]Tool Output: {event['data'].get('output')}[/dim]\n")
+
+
+async def _run_turn(chat_history):
+    console.print("[dim]Agent is thinking...[/dim]")
+
+    async for event in app.astream_events({"messages": chat_history}, version="v1"):
+        _print_stream_event(event)
+
+    final_state = await app.ainvoke({"messages": chat_history})
+    return final_state["messages"]
+
 async def main():
-    console.print(Panel.fit("[bold blue]AirKube Agentic CLI[/bold blue]\n[green]Powered by LangGraph & OpenAI[/green]"))
+    console.print(Panel.fit("[bold blue]AirKube Agentic CLI[/bold blue]\n[green]Powered by LangGraph & Gemini[/green]"))
     
-    if not os.getenv("OPENAI_API_KEY"):
-        console.print("[bold red]WARNING: OPENAI_API_KEY not found in environment.[/bold red]")
-        console.print("Please set it via `set OPENAI_API_KEY=sk-...` or `.env` file.")
+    if not os.getenv("GEMINI_API_KEY"):
+        console.print("[bold red]WARNING: GEMINI_API_KEY not found in environment.[/bold red]")
+        console.print("Please set it via `set GEMINI_API_KEY=...` or `.env` file.")
         # We don't exit, just let it fail naturally if they try to use it, or they might set it now.
     
     chat_history = [SystemMessage(content=SYSTEM_PROMPT)]
@@ -37,33 +64,8 @@ async def main():
                 break
             
             chat_history.append(HumanMessage(content=user_input))
-            
-            console.print("[dim]Agent is thinking...[/dim]")
-            
-            # Streaming the graph execution
-            async for event in app.astream_events({"messages": chat_history}, version="v1"):
-                kind = event["event"]
-                
-                if kind == "on_chat_model_stream":
-                    content = event["data"]["chunk"].content
-                    if content:
-                        console.print(content, end="", style="cyan")
-                        
-                elif kind == "on_tool_start":
-                    console.print(f"\n[bold magenta]Using Tool: {event['name']}[/bold magenta]")
-                    
-                elif kind == "on_tool_end":
-                    console.print(f"[dim]Tool Output: {event['data'].get('output')}[/dim]\n")
 
-            # Update history with the final state (simplified for this loop)
-            # In a real app, we'd sync the state object properly.
-            # Here we just rely on the graph returning the final response in the stream
-            # but for the loop context, we should really update `chat_history`.
-            
-            # Since `app.invoke` returns the final state, let's use that for history management
-            # instead of complex stream parsing for history history updates.
-            final_state = await app.ainvoke({"messages": chat_history})
-            chat_history = final_state["messages"]
+            chat_history = await _run_turn(chat_history)
             
             # Print final response if not streamed (or just a separator)
             console.print("\n" + "-"*30 + "\n")

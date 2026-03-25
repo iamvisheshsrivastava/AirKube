@@ -1,7 +1,11 @@
 import json
 import logging
 import os
-from langchain_openai import ChatOpenAI
+from ml.env import load_env
+
+load_env()
+
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from ml.kg_schemas import ExtractionResult
@@ -31,18 +35,18 @@ SCHEMA:
 
 def extract_entities_from_text(text: str) -> ExtractionResult:
     """
-    Uses an LLM (GPT-4 or GPT-3.5) to extract structured MLOps entities from unstructured text.
+    Uses Gemini to extract structured MLOps entities from unstructured text.
     """
     logger.info(f"Extracting knowledge from text segment ({len(text)} chars)...")
     
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        logger.warning("OPENAI_API_KEY not set. Returning mock data due to missing credentials.")
+        logger.warning("GEMINI_API_KEY not set. Returning mock data due to missing credentials.")
         return _get_mock_data()
 
     try:
         # Initialize LLM
-        model = ChatOpenAI(model="gpt-4-turbo-preview", temperature=0, api_key=api_key)
+        model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0, google_api_key=api_key)
         
         # Create Chain
         prompt = ChatPromptTemplate.from_messages([

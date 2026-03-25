@@ -1,7 +1,11 @@
 import streamlit as st
 import os
 import json
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from ml.env import load_env
+
+load_env()
+
+from langchain.schema import HumanMessage, AIMessage, SystemMessage
 from agent.graph import app
 
 # Page Config
@@ -13,9 +17,9 @@ st.markdown("### Orchestrating ML Pipelines & Knowledge Graphs with AI")
 # Sidebar for Configuration
 with st.sidebar:
     st.header("Configuration")
-    api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
+    api_key = st.text_input("Gemini API Key", type="password", value=os.getenv("GEMINI_API_KEY", ""))
     if api_key:
-        os.environ["OPENAI_API_KEY"] = api_key
+        os.environ["GEMINI_API_KEY"] = api_key
     
     st.divider()
     st.subheader("System Health")

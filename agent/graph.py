@@ -1,8 +1,11 @@
 import json
 import logging
 import os
-from langchain_openai import ChatOpenAI
-from langchain.agents import AgentExecutor, create_openai_tools_agent
+from ml.env import load_env
+
+load_env()
+
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, ToolMessage, SystemMessage
 from langgraph.graph import StateGraph, END
@@ -19,12 +22,12 @@ tool_executor = ToolExecutor(tools)
 
 # 2. Define Model
 # We gracefully handle missing API keys for demo purposes
-api_key = os.getenv("OPENAI_API_KEY")
+api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
-    logger.warning("OPENAI_API_KEY not found. Agent will fail if invoked.")
+    logger.warning("GEMINI_API_KEY not found. Agent will fail if invoked.")
     # For robust code, we might want a mock, but let's assume the user will provide it.
     
-llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0, streaming=True)
+llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0, streaming=True, google_api_key=api_key)
 model = llm.bind_tools(tools)
 
 # 3. Define Nodes

@@ -8,6 +8,10 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import requests
 
+from ml.env import load_env
+
+load_env()
+
 from ml.news_schemas import DailyArticleCount, NewsPipelineConfig, ProcessedNewsArticle, RawNewsArticle
 
 logger = logging.getLogger("news_pipeline")

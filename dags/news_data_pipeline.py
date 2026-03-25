@@ -8,6 +8,10 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
+from ml.env import load_env
+
+load_env()
+
 from ml.news_integration import build_ml_trigger_conf
 from ml.news_pipeline import (
     BQ_DATASET,
