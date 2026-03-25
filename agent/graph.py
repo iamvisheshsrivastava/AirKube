@@ -5,20 +5,17 @@ from ml.env import load_env
 
 load_env()
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import HumanMessage, ToolMessage, SystemMessage
+from langchain_core.messages import AIMessage, SystemMessage
 from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import ToolExecutor
+import google.generativeai as genai
 
 from agent.state import AgentState
-from agent.tools import trigger_ml_pipeline, query_knowledge_graph, check_system_health, get_kg_schema
+from agent.tools import trigger_ml_pipeline, trigger_news_data_pipeline, query_knowledge_graph, check_system_health, get_kg_schema
 
 logger = logging.getLogger("agent_graph")
 
 # 1. Define Tools
-tools = [trigger_ml_pipeline, query_knowledge_graph, check_system_health, get_kg_schema]
-tool_executor = ToolExecutor(tools)
+tools = [trigger_ml_pipeline, trigger_news_data_pipeline, query_knowledge_graph, check_system_health, get_kg_schema]
 
 # 2. Define Model
 # We gracefully handle missing API keys for demo purposes
@@ -26,9 +23,9 @@ api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
     logger.warning("GEMINI_API_KEY not found. Agent will fail if invoked.")
     # For robust code, we might want a mock, but let's assume the user will provide it.
-    
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0, streaming=True, google_api_key=api_key)
-model = llm.bind_tools(tools)
+
+genai.configure(api_key=api_key)
+model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-2.5-flash"))
 
 # 3. Define Nodes
 
@@ -40,38 +37,28 @@ Guidelines:
    - ALWAYS use `get_kg_schema` first if you are unsure about the data model or before writing complex Cypher queries.
    - The schema is NOT medical (diseases/drugs); it is MLOps focused.
 2. **System Health**: Use `check_system_health` to verify if the Inference API and other components are running.
-3. **Pipelines**: You can trigger the 'enhanced_ml_pipeline' using `trigger_ml_pipeline`.
+3. **Pipelines**: You can trigger the 'enhanced_ml_pipeline' using `trigger_ml_pipeline`, and the 'news_data_pipeline' using `trigger_news_data_pipeline`.
 
 Be concise and helpful.
 """
 
 def call_model(state: AgentState):
     messages = state['messages']
-    # Prepend system message to the context sent to the LLM
-    # We do NOT add this to the global state history to avoid duplication, 
-    # just to the local call context.
-    prompt_messages = [SystemMessage(content=SYSTEM_PROMPT)] + messages
-    response = model.invoke(prompt_messages)
-    return {"messages": [response]}
+    try:
+        conversation = []
+        for message in messages:
+            role = "user"
+            if message.__class__.__name__.lower().startswith("ai"):
+                role = "assistant"
+            conversation.append(f"{role}: {message.content}")
 
-def call_tool(state: AgentState):
-    messages = state['messages']
-    last_message = messages[-1]
-    
-    tool_inputs = []
-    
-    # We iterate over tool calls in the last message
-    if hasattr(last_message, "tool_calls"):
-        for tool_call in last_message.tool_calls:
-            action = tool_executor.invoke(tool_call)
-            tool_message = ToolMessage(
-                tool_call_id=tool_call['id'],
-                content=str(action),
-                name=tool_call['name']
-            )
-            tool_inputs.append(tool_message)
-            
-    return {"messages": tool_inputs}
+        prompt = f"{SYSTEM_PROMPT}\n\nConversation so far:\n" + "\n".join(conversation) + "\n\nRespond to the latest user message only."
+        response = model.generate_content(prompt)
+        response_text = getattr(response, "text", None) or str(response)
+        return {"messages": [AIMessage(content=response_text)]}
+    except Exception as error:
+        logger.error("Gemini call failed: %s", error)
+        return {"messages": [AIMessage(content=f"Gemini error: {error}")]}
 
 # 4. Define Logic
 
@@ -88,19 +75,8 @@ def should_continue(state: AgentState):
 workflow = StateGraph(AgentState)
 
 workflow.add_node("agent", call_model)
-workflow.add_node("action", call_tool)
 
 workflow.set_entry_point("agent")
-
-workflow.add_conditional_edges(
-    "agent",
-    should_continue,
-    {
-        "continue": "action",
-        "end": END
-    }
-)
-
-workflow.add_edge("action", "agent")
+workflow.add_edge("agent", END)
 
 app = workflow.compile()

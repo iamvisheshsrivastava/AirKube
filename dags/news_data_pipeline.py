@@ -29,6 +29,7 @@ from ml.news_pipeline import (
     fetch_incremental_articles,
     get_incremental_watermark,
     load_jsonl_from_gcs_to_bigquery,
+    load_rows_to_bigquery,
     persist_incremental_watermark,
     raw_article_schema,
     render_sql_template,
@@ -110,7 +111,9 @@ def branch_on_article_count(**context):
     transformed = context["ti"].xcom_pull(task_ids="transform_news") or {}
     article_count = transformed.get("summary", {}).get("article_count", 0)
     if article_count > 0:
-        return "upload_raw_to_gcs"
+        if GCS_BUCKET_NAME:
+            return "upload_raw_to_gcs"
+        return "load_raw_direct_to_bigquery"
     return "no_new_articles"
 
 
@@ -122,6 +125,19 @@ def upload_raw_to_gcs(**context):
     gcs_uri = write_jsonl_to_gcs(GCS_BUCKET_NAME, gcs_object, cleaned_raw)
     logger.info("Uploaded raw articles to %s", gcs_uri)
     return gcs_uri
+
+
+def load_raw_direct_to_bigquery(**context):
+    transformed = context["ti"].xcom_pull(task_ids="transform_news") or {}
+    run_context = context["ti"].xcom_pull(task_ids="prepare_run_context")
+    cleaned_raw = transformed.get("cleaned_raw", [])
+    load_rows_to_bigquery(
+        rows=cleaned_raw,
+        table_id=run_context["raw_table"],
+        schema=raw_article_schema(),
+        write_disposition="WRITE_APPEND",
+    )
+    logger.info("Loaded raw articles directly to BigQuery table %s", run_context["raw_table"])
 
 
 def load_raw_to_bigquery(**context):
@@ -182,6 +198,7 @@ with DAG(
     branch = BranchPythonOperator(task_id="branch_on_article_count", python_callable=branch_on_article_count)
     no_new_articles = EmptyOperator(task_id="no_new_articles")
     upload_raw = PythonOperator(task_id="upload_raw_to_gcs", python_callable=upload_raw_to_gcs)
+    load_raw_direct = PythonOperator(task_id="load_raw_direct_to_bigquery", python_callable=load_raw_direct_to_bigquery)
     load_raw = PythonOperator(task_id="load_raw_to_bigquery", python_callable=load_raw_to_bigquery)
     elt = PythonOperator(task_id="run_elt_processing", python_callable=run_elt_processing)
     persist = PythonOperator(task_id="persist_watermark", python_callable=persist_watermark)
@@ -202,3 +219,4 @@ with DAG(
     start >> prepare >> extract >> transform >> branch
     branch >> no_new_articles >> end
     branch >> upload_raw >> load_raw >> elt >> trigger_ml >> persist >> end
+    branch >> load_raw_direct >> elt >> trigger_ml >> persist >> end

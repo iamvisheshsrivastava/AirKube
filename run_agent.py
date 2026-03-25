@@ -4,7 +4,7 @@ from ml.env import load_env
 
 load_env()
 
-from langchain.schema import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from agent.graph import app
 from rich.console import Console
 from rich.panel import Panel
@@ -17,8 +17,9 @@ Your goal is to manage the ML Lifecycle and Knowledge Graph for the AirKube plat
 
 You have access to the following tools:
 1. `trigger_ml_pipeline`: Use this to start training or deployment workflows.
-2. `query_knowledge_graph`: Use this to find information about datasets, models, and past runs.
-3. `check_system_health`: Use this to verify if the infra (K8s, API) is healthy.
+2. `trigger_news_data_pipeline`: Use this to start the news ingestion workflow.
+3. `query_knowledge_graph`: Use this to find information about datasets, models, and past runs.
+4. `check_system_health`: Use this to verify if the infra (K8s, API) is healthy.
 
 Always be concise. If you need to plan complex steps, outline them first.
 If you are answering a user question, use the Knowledge Graph to ground your answer.

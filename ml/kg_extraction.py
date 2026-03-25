@@ -5,9 +5,7 @@ from ml.env import load_env
 
 load_env()
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
+import google.generativeai as genai
 from ml.kg_schemas import ExtractionResult
 
 logger = logging.getLogger("kg_extractor")
@@ -46,19 +44,25 @@ def extract_entities_from_text(text: str) -> ExtractionResult:
 
     try:
         # Initialize LLM
-        model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0, google_api_key=api_key)
-        
-        # Create Chain
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", SYSTEM_PROMPT),
-            ("user", "{text}")
-        ])
-        chain = prompt | model | JsonOutputParser()
-        
-        # Execute
-        result_dict = chain.invoke({"text": text})
-        
-        logger.debug(f"LLM Raw Output: {result_dict}")
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-2.5-flash"))
+
+        prompt = (
+            f"{SYSTEM_PROMPT}\n\n"
+            f"Text to extract from:\n{text}\n\n"
+            "Return only valid JSON matching the schema."
+        )
+        response = model.generate_content(prompt)
+        raw_text = getattr(response, "text", "") or str(response)
+        logger.debug(f"LLM Raw Output: {raw_text}")
+
+        cleaned_text = raw_text.strip()
+        if cleaned_text.startswith("```"):
+            cleaned_text = cleaned_text.strip("`")
+            if cleaned_text.startswith("json"):
+                cleaned_text = cleaned_text[4:].strip()
+
+        result_dict = json.loads(cleaned_text)
 
         # Parse and Validate with Pydantic
         extraction = ExtractionResult(**result_dict)

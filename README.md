@@ -37,7 +37,7 @@ A lightweight, production-grade API framework for model serving (`ml/inference.p
 A new Airflow DAG (`news_data_pipeline`) that implements a real ETL/ELT flow for public news data:
 - **Incremental Extraction**: Fetches only new NewsAPI articles based on the last successful watermark.
 - **Python Transformations**: Cleans nulls, normalizes timestamps, and removes duplicates before landing raw data.
-- **GCS Landing Zone**: Writes raw JSONL batches to Google Cloud Storage.
+- **GCS Landing Zone**: Writes raw JSONL batches to Google Cloud Storage when a bucket is configured; otherwise it loads directly into BigQuery.
 - **BigQuery Raw + Processed Tables**: Loads raw data into BigQuery and materializes processed tables with SQL.
 - **ELT SQL**: Builds a sentiment-ready dataset and daily article counts inside BigQuery.
 - **ML Integration**: Passes the processed BigQuery table reference into `enhanced_ml_pipeline` for downstream use.
@@ -73,7 +73,7 @@ We have introduced a **Streamlit Dashboard** for a rich visual experience.
 ### Running the Platform
 1. **Install dependencies**: `pip install -r requirements.txt`
 2. **Set your API Key**: `export GEMINI_API_KEY=...` (or set in `.env`)
-3. **Configure News Pipeline Secrets**: set `NEWS_API_KEY`, `GCP_PROJECT_ID`, `NEWS_GCS_BUCKET`, and BigQuery dataset/table variables.
+3. **Configure News Pipeline Secrets**: set `NEWS_API_KEY`, `GCP_PROJECT_ID`, and BigQuery dataset/table variables. `NEWS_GCS_BUCKET` is optional.
 4. **Run the Dashboard**: `streamlit run dashboard.py`
 5. **(Optional) Run CLI Agent**: `python run_agent.py`
 6. **Trigger the News Pipeline**: run the `news_data_pipeline` DAG in Airflow.
