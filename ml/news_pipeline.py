@@ -25,6 +25,7 @@ RAW_TABLE = os.getenv("NEWS_RAW_TABLE", "news_articles_raw")
 PROCESSED_TABLE = os.getenv("NEWS_PROCESSED_TABLE", "news_articles_processed")
 DAILY_COUNTS_TABLE = os.getenv("NEWS_DAILY_COUNTS_TABLE", "news_article_daily_counts")
 LAST_WATERMARK_VARIABLE = os.getenv("NEWS_LAST_WATERMARK_VARIABLE", "news_pipeline_last_published_at")
+PIPELINE_AUDIT_LOG_PATH = os.getenv("PIPELINE_AUDIT_LOG_PATH", "logs/pipeline_audit.jsonl")
 
 try:
     from airflow.models import Variable
@@ -64,6 +65,24 @@ def _json_default(value: Any) -> str:
     if isinstance(value, datetime):
         return value.astimezone(timezone.utc).isoformat()
     return str(value)
+
+
+def build_audit_event(stage: str, status: str, details: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    return {
+        "timestamp": _utc_now().isoformat(),
+        "pipeline": "news_data_pipeline",
+        "stage": stage,
+        "status": status,
+        "details": details or {},
+    }
+
+
+def record_audit_event(event: Dict[str, Any]) -> None:
+    audit_path = Path(PIPELINE_AUDIT_LOG_PATH)
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    with audit_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(event, default=_json_default) + "\n")
+    logger.info("Audit event recorded: %s", event)
 
 
 def get_incremental_watermark(default_hours: int = 24) -> datetime:
@@ -255,6 +274,15 @@ def build_pipeline_summary(processed_articles: Sequence[ProcessedNewsArticle]) -
         "source_count": len(sources),
         "sources": sources,
         "latest_published_at": latest_published.astimezone(timezone.utc).isoformat() if latest_published else None,
+    }
+
+
+def build_data_quality_summary(raw_articles: Sequence[RawNewsArticle], cleaned_raw: Sequence[RawNewsArticle]) -> Dict[str, Any]:
+    return {
+        "raw_article_count": len(raw_articles),
+        "cleaned_article_count": len(cleaned_raw),
+        "duplicate_article_count": max(len(raw_articles) - len(cleaned_raw), 0),
+        "deduplication_rate": round((len(cleaned_raw) / len(raw_articles)) if raw_articles else 1.0, 4),
     }
 
 

@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: AirKube Dashboards
+    orgId: 1
+    folder: AirKube
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

@@ -23,6 +23,8 @@ from ml.news_pipeline import (
     RAW_TABLE,
     build_daily_counts_table_id,
     build_pipeline_summary,
+    build_audit_event,
+    build_data_quality_summary,
     build_processed_table_id,
     build_raw_table_id,
     clean_and_transform_articles,
@@ -34,6 +36,7 @@ from ml.news_pipeline import (
     raw_article_schema,
     render_sql_template,
     run_bigquery_sql,
+    record_audit_event,
     write_jsonl_to_gcs,
 )
 from ml.news_schemas import NewsPipelineConfig
@@ -76,6 +79,19 @@ def prepare_run_context(**context):
         "gcs_object": f"news/raw/news_{run_ts}.jsonl",
     }
     logger.info("Prepared news pipeline context for query=%s since=%s", config.query, since.isoformat())
+    record_audit_event(
+        build_audit_event(
+            "prepare_run_context",
+            "success",
+            {
+                "query": config.query,
+                "since": since.isoformat(),
+                "raw_table": payload["raw_table"],
+                "processed_table": payload["processed_table"],
+                "daily_counts_table": payload["daily_counts_table"],
+            },
+        )
+    )
     return payload
 
 
@@ -86,6 +102,16 @@ def fetch_news(**context):
     api_key = NEWS_API_KEY or os.getenv("NEWS_API_KEY", "")
     articles = fetch_incremental_articles(config=config, api_key=api_key, since=since)
     logger.info("Fetched %s incremental articles", len(articles))
+    record_audit_event(
+        build_audit_event(
+            "fetch_news",
+            "success",
+            {
+                "article_count": len(articles),
+                "since": since.isoformat(),
+            },
+        )
+    )
     return [article.model_dump(mode="json") for article in articles]
 
 
@@ -96,14 +122,26 @@ def transform_news(**context):
     articles = [RawNewsArticle(**article) for article in raw_articles]
     cleaned_raw, processed_articles, daily_counts = clean_and_transform_articles(articles)
     summary = build_pipeline_summary(processed_articles)
+    quality = build_data_quality_summary(articles, cleaned_raw)
     payload = {
         "cleaned_raw": [article.model_dump(mode="json") for article in cleaned_raw],
         "processed_articles": [article.model_dump(mode="json") for article in processed_articles],
         "daily_counts": [item.model_dump(mode="json") for item in daily_counts],
         "summary": summary,
+        "quality": quality,
         "latest_published_at": summary.get("latest_published_at"),
     }
     logger.info("Transformation produced %s processed articles", summary["article_count"])
+    record_audit_event(
+        build_audit_event(
+            "transform_news",
+            "success",
+            {
+                **summary,
+                **quality,
+            },
+        )
+    )
     return payload
 
 
@@ -124,6 +162,16 @@ def upload_raw_to_gcs(**context):
     gcs_object = run_context["gcs_object"]
     gcs_uri = write_jsonl_to_gcs(GCS_BUCKET_NAME, gcs_object, cleaned_raw)
     logger.info("Uploaded raw articles to %s", gcs_uri)
+    record_audit_event(
+        build_audit_event(
+            "upload_raw_to_gcs",
+            "success",
+            {
+                "gcs_uri": gcs_uri,
+                "row_count": len(cleaned_raw),
+            },
+        )
+    )
     return gcs_uri
 
 
@@ -138,6 +186,16 @@ def load_raw_direct_to_bigquery(**context):
         write_disposition="WRITE_APPEND",
     )
     logger.info("Loaded raw articles directly to BigQuery table %s", run_context["raw_table"])
+    record_audit_event(
+        build_audit_event(
+            "load_raw_direct_to_bigquery",
+            "success",
+            {
+                "table_id": run_context["raw_table"],
+                "row_count": len(cleaned_raw),
+            },
+        )
+    )
 
 
 def load_raw_to_bigquery(**context):
@@ -148,6 +206,16 @@ def load_raw_to_bigquery(**context):
         table_id=run_context["raw_table"],
         schema=raw_article_schema(),
         write_disposition="WRITE_APPEND",
+    )
+    record_audit_event(
+        build_audit_event(
+            "load_raw_to_bigquery",
+            "success",
+            {
+                "gcs_uri": gcs_uri,
+                "table_id": run_context["raw_table"],
+            },
+        )
     )
 
 
@@ -167,13 +235,33 @@ def run_elt_processing(**context):
         run_context["processed_table"],
         run_context["daily_counts_table"],
     )
+    record_audit_event(
+        build_audit_event(
+            "run_elt_processing",
+            "success",
+            {
+                "processed_table": run_context["processed_table"],
+                "daily_counts_table": run_context["daily_counts_table"],
+            },
+        )
+    )
 
 
 def persist_watermark(**context):
     transformed = context["ti"].xcom_pull(task_ids="transform_news") or {}
     latest = transformed.get("latest_published_at")
     if latest:
-        persist_incremental_watermark(datetime.fromisoformat(latest.replace("Z", "+00:00")))
+        watermark = datetime.fromisoformat(latest.replace("Z", "+00:00"))
+        persist_incremental_watermark(watermark)
+        record_audit_event(
+            build_audit_event(
+                "persist_watermark",
+                "success",
+                {
+                    "watermark": watermark.isoformat(),
+                },
+            )
+        )
 
 
 with DAG(

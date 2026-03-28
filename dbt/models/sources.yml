@@ -1,0 +1,20 @@
+version: 2
+
+sources:
+  - name: news_raw
+    database: "{{ env_var('GCP_PROJECT_ID', 'airkube') }}"
+    schema: "{{ env_var('NEWS_BQ_DATASET', 'news_pipeline') }}"
+    tables:
+      - name: "{{ env_var('NEWS_RAW_TABLE', 'news_articles_raw') }}"
+        description: Raw news articles landed by AirKube.
+        columns:
+          - name: article_id
+            tests:
+              - not_null
+              - unique
+          - name: title
+            tests:
+              - not_null
+          - name: published_at
+            tests:
+              - not_null

@@ -5,3 +5,14 @@ venv/
 .vscode/
 .DS_Store
 .github/agents/gcp-production-ops.agent.md
+logs/
+
+# Terraform generated state and local cache
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# dbt generated artifacts
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/

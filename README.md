@@ -2,26 +2,21 @@
 
 # AirKube
 
-**Airflow Orchestration + Kubernetes Scalability for ML Pipelines**
+**Airflow Orchestration + Kubernetes Scalability for Data Pipelines**
 
 ## Project Overview
-AirKube is a modular MLOps platform designed to demonstrate the lifecycle of Machine Learning models. It combines **Apache Airflow** for workflow scheduling, **FastAPI** for model serving, and **MLflow** for experiment tracking, with **Kubernetes** manifests ready for scalable deployment.
+AirKube is a modular data engineering platform designed to demonstrate ingestion, transformation, orchestration, and monitoring workflows. It combines **Apache Airflow** for workflow scheduling, **BigQuery** and **GCS** for warehouse storage, **dbt** for transformation modeling, **FastAPI** for service endpoints, and **Docker/Kubernetes** assets for deployment.
 
-Currently, the project features a functional **ML Pipeline** that simulates critical MLOps stages—from Data Validation to Deployment—and a production-ready **Inference API** with built-in observability.
-
-It also now includes a production-style **News ETL/ELT pipeline** that ingests public news data into **GCS** and **BigQuery** for downstream analytics and ML consumption.
+Currently, the project features a functional **pipeline layer** that simulates critical lifecycle stages, a production-ready **Inference API** with built-in observability, and a **news ETL/ELT pipeline** that lands raw data in GCS/BigQuery and materializes reporting tables.
 
 ## Key Features
 
-### 1. Enhanced ML Pipeline (Airflow)
-A comprehensive Airflow DAG (`enhanced_ml_pipeline`) that manages the ML lifecycle:
-- **MLflow Integration**: automatically logs training parameters, metrics (accuracy, loss), and artifacts.
-- **Conditional Branching**: Implements "Gatekeeper" logic to only deploy models that meet strict accuracy thresholds.
-- **Simulated Stages**:
-  - **Data Validation**: Randomly simulates schema checks and failures.
-  - **Training**: Simulates model training time and variable performance.
-  - **Model Registry**: Simulates versioning and artifact storage.
-  - **CI/CD**: Simulates Docker image builds and Kubernetes rolling updates.
+### 1. Orchestration Layer (Airflow)
+A set of Airflow DAGs that manage ingestion and downstream handoff:
+- **Incremental ingestion** for public news data.
+- **Raw and processed warehouse loading** into BigQuery.
+- **Conditional branching** based on article availability and pipeline state.
+- **Pipeline audit logging** for run tracking and failure analysis.
 
 ### 2. Observable Inference Service (FastAPI)
 A lightweight, production-grade API framework for model serving (`ml/inference.py`):
@@ -40,7 +35,19 @@ A new Airflow DAG (`news_data_pipeline`) that implements a real ETL/ELT flow for
 - **GCS Landing Zone**: Writes raw JSONL batches to Google Cloud Storage when a bucket is configured; otherwise it loads directly into BigQuery.
 - **BigQuery Raw + Processed Tables**: Loads raw data into BigQuery and materializes processed tables with SQL.
 - **ELT SQL**: Builds a sentiment-ready dataset and daily article counts inside BigQuery.
-- **ML Integration**: Passes the processed BigQuery table reference into `enhanced_ml_pipeline` for downstream use.
+- **Audit logging**: Emits structured run events for ingestion, transformation, and loading stages.
+
+### 4. Warehouse Modeling (dbt)
+A dbt project under `dbt/` that models the BigQuery warehouse:
+- **Source definitions** for raw news tables.
+- **Staging models** for cleaned, typed, analytics-ready records.
+- **Mart models** for daily article counts and reporting.
+- **dbt tests** for uniqueness and not-null validation.
+
+### 5. Observability Stack
+- **Prometheus** scrapes the FastAPI service metrics endpoint.
+- **Grafana** provides a starter dashboard for request rate, latency, uptime, and error trends.
+- **Audit logs** are written locally for pipeline runs and can be forwarded into centralized logging later.
 
 ## Project Structure
 - `dags/`: Airflow DAG definitions (e.g., `ml_pipeline.py`).
@@ -52,23 +59,17 @@ A new Airflow DAG (`news_data_pipeline`) that implements a real ETL/ELT flow for
   - `news_integration.py`: Bridge helpers for ML pipeline handoff.
 - `docker/`: Dockerfiles for containerization.
 - `k8s/`: Kubernetes manifest files for deployment.
+- `terraform/`: Infrastructure-as-code for GCS, BigQuery, and service accounts.
+- `dbt/`: BigQuery staging and marts models.
+- `observability/`: Prometheus and Grafana configuration.
 - `tests/`: Unit and integration tests.
 
 ## Agentic Capabilities (NEW 🚀)
 
 AirKube now includes an autonomous agent powered by **LangGraph** and **Gemini**. The agent acts as a true MLOps copilot.
 
-### 🌟 New: Interactive Dashboard
-We have introduced a **Streamlit Dashboard** for a rich visual experience.
-- **Chat Interface**: Talk to the MLOps agent directly.
-- **Extraction Playground**: Test the new LLM-based Knowledge Extraction on your own text.
-- **Graph Explorer**: Query and visualize the Knowledge Graph.
-
-### Capabilities:
-- **Real-Time Knowledge Extraction**: Uses **Gemini** to parse unstructured text into structured KG entities (Models, Runs, metrics).
-- **Smart Schema Awareness**: Automatically inspects the KG schema before querying using `get_kg_schema`.
-- **Pipeline Orchestration**: Trigger Airflow DAGs from natural language.
-- **System Observability**: Check the health of Inference APIs and other components.
+### Operational UI
+The Streamlit dashboard remains available for service checks and exploratory control, but the core portfolio focus is now the data platform itself: ingestion, warehouse modeling, orchestration, and monitoring.
 
 ### Running the Platform
 1. **Install dependencies**: `pip install -r requirements.txt`
@@ -77,6 +78,9 @@ We have introduced a **Streamlit Dashboard** for a rich visual experience.
 4. **Run the Dashboard**: `streamlit run dashboard.py`
 5. **(Optional) Run CLI Agent**: `python run_agent.py`
 6. **Trigger the News Pipeline**: run the `news_data_pipeline` DAG in Airflow.
+7. **Provision infrastructure**: `terraform -chdir=terraform init && terraform -chdir=terraform plan`
+8. **Build the warehouse models**: `cd dbt && dbt build`
+9. **Start monitoring**: `docker compose up prometheus grafana`
 
 ### 🧪 Tests & CI/CD
 This project includes a comprehensive test suite and GitHub Actions workflow.
@@ -84,11 +88,10 @@ This project includes a comprehensive test suite and GitHub Actions workflow.
 - **CI/CD**: Automatically runs tests and linting on every push to `main`.
 
 ## Future Extensions & Roadmap
-1.  **LangGraph Integration**: ✅ Implemented.
-2.  **Agentic Orchestration**: ✅ Implemented (`agent/graph.py`).
-3.  **Real Knowledge Extraction**: ✅ Implemented (`ml/kg_extraction.py` with GPT-4).
-4.  **Interactive UI**: ✅ Implemented (`dashboard.py`).
+1.  **Terraform**: ✅ Implemented (`terraform/`).
+2.  **dbt Warehouse Models**: ✅ Implemented (`dbt/`).
+3.  **Monitoring Stack**: ✅ Implemented (`observability/`, `docker-compose.yaml`).
+4.  **Pipeline Audit Logging**: ✅ Implemented (`ml/news_pipeline.py`, `dags/news_data_pipeline.py`).
 5.  **News ETL/ELT**: ✅ Implemented (`dags/news_data_pipeline.py`, `ml/news_pipeline.py`).
-6.  **Real ML Models**: Replacing simulations with actual PyTorch/TensorFlow training jobs.
-7.  **RAG Capability**: Deepening the KG integration for smarter context.
-8.  **Advanced Monitoring**: Full integration with a Grafana dashboard consuming the Prometheus metrics.
+6.  **Real-Time Streaming Ingestion**: Next good addition if you want a stronger data-engineering portfolio.
+7.  **Data Quality Automation**: Expand dbt tests or add Great Expectations if you want more validation depth.

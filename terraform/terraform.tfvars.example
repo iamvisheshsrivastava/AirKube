@@ -1,0 +1,5 @@
+project_id          = "airkube"
+region              = "us-central1"
+bucket_name         = "airkube-news-raw"
+dataset_id          = "news_pipeline"
+service_account_id  = "airkube-data-platform"

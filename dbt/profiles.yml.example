@@ -1,0 +1,11 @@
+airkube_news:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID', 'airkube') }}"
+      dataset: "{{ env_var('NEWS_BQ_DATASET', 'news_pipeline') }}"
+      threads: 4
+      timeout_seconds: 300
+      priority: interactive
