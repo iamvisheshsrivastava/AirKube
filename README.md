@@ -40,7 +40,9 @@ A new Airflow DAG (`news_data_pipeline`) that implements a real ETL/ELT flow for
 ### 4. Warehouse Modeling (dbt)
 A dbt project under `dbt/` that models the BigQuery warehouse:
 - **Source definitions** for raw news tables.
+- **Source freshness checks** on the raw ingest layer.
 - **Staging models** for cleaned, typed, analytics-ready records.
+- **Staging tests** for uniqueness and nullability on key article fields.
 - **Mart models** for daily article counts and reporting.
 - **dbt tests** for uniqueness and not-null validation.
 
@@ -94,4 +96,4 @@ This project includes a comprehensive test suite and GitHub Actions workflow.
 4.  **Pipeline Audit Logging**: ✅ Implemented (`ml/news_pipeline.py`, `dags/news_data_pipeline.py`).
 5.  **News ETL/ELT**: ✅ Implemented (`dags/news_data_pipeline.py`, `ml/news_pipeline.py`).
 6.  **Real-Time Streaming Ingestion**: Next good addition if you want a stronger data-engineering portfolio.
-7.  **Data Quality Automation**: Expand dbt tests or add Great Expectations if you want more validation depth.
+7.  **Data Quality Automation**: ✅ Implemented (`dbt/models/sources.yml`, `dbt/models/staging/schema.yml`).

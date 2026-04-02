@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 import logging
 import os
+import re
 from typing import Any, Dict, List
 
 from airflow import DAG
@@ -51,11 +52,20 @@ default_args = {
 }
 
 
+def _normalize_batch_id(value: str) -> str:
+    normalized = re.sub(r"[^A-Za-z0-9_-]+", "_", value)
+    normalized = re.sub(r"_+", "_", normalized)
+    return normalized.strip("_") or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
 def prepare_run_context(**context):
     dag_run_conf = (context.get("dag_run").conf if context.get("dag_run") else {}) or {}
     sources = dag_run_conf.get("sources")
     if isinstance(sources, str):
         sources = [item.strip() for item in sources.split(",") if item.strip()]
+
+    dag_run = context.get("dag_run")
+    run_id = getattr(dag_run, "run_id", None) if dag_run else None
 
     project_id = GCP_PROJECT_ID
     config = NewsPipelineConfig(
@@ -68,15 +78,17 @@ def prepare_run_context(**context):
 
     since = get_incremental_watermark(default_hours=config.lookback_hours)
     run_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    batch_id = _normalize_batch_id(run_id or run_ts)
     payload = {
         "config": config.model_dump(),
         "since": since.isoformat(),
         "run_ts": run_ts,
+        "batch_id": batch_id,
         "project_id": project_id,
         "raw_table": build_raw_table_id(project_id),
         "processed_table": build_processed_table_id(project_id),
         "daily_counts_table": build_daily_counts_table_id(project_id),
-        "gcs_object": f"news/raw/news_{run_ts}.jsonl",
+        "gcs_object": f"news/raw/news_{batch_id}.jsonl",
     }
     logger.info("Prepared news pipeline context for query=%s since=%s", config.query, since.isoformat())
     record_audit_event(
@@ -100,7 +112,7 @@ def fetch_news(**context):
     config = NewsPipelineConfig(**run_context["config"])
     since = datetime.fromisoformat(run_context["since"].replace("Z", "+00:00"))
     api_key = NEWS_API_KEY or os.getenv("NEWS_API_KEY", "")
-    articles = fetch_incremental_articles(config=config, api_key=api_key, since=since)
+    articles = fetch_incremental_articles(config=config, api_key=api_key, since=since, batch_id=run_context["batch_id"])
     logger.info("Fetched %s incremental articles", len(articles))
     record_audit_event(
         build_audit_event(
@@ -183,6 +195,7 @@ def load_raw_direct_to_bigquery(**context):
         rows=cleaned_raw,
         table_id=run_context["raw_table"],
         schema=raw_article_schema(),
+        batch_id=run_context["batch_id"],
         write_disposition="WRITE_APPEND",
     )
     logger.info("Loaded raw articles directly to BigQuery table %s", run_context["raw_table"])
@@ -205,6 +218,7 @@ def load_raw_to_bigquery(**context):
         gcs_uri=gcs_uri,
         table_id=run_context["raw_table"],
         schema=raw_article_schema(),
+        batch_id=run_context["batch_id"],
         write_disposition="WRITE_APPEND",
     )
     record_audit_event(

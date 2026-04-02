@@ -7,6 +7,14 @@ sources:
     tables:
       - name: "{{ env_var('NEWS_RAW_TABLE', 'news_articles_raw') }}"
         description: Raw news articles landed by AirKube.
+        loaded_at_field: fetched_at
+        freshness:
+          warn_after:
+            count: 24
+            period: hour
+          error_after:
+            count: 48
+            period: hour
         columns:
           - name: article_id
             tests:

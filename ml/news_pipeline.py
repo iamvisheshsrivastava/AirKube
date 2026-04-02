@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -33,10 +34,12 @@ except Exception:  # pragma: no cover - Airflow is not available in unit-test en
     Variable = None
 
 try:
+    from google.api_core.exceptions import NotFound
     from google.cloud import bigquery, storage
 except Exception:  # pragma: no cover - Optional runtime dependency for local testing.
     bigquery = None
     storage = None
+    NotFound = None
 
 
 def _utc_now() -> datetime:
@@ -65,6 +68,12 @@ def _json_default(value: Any) -> str:
     if isinstance(value, datetime):
         return value.astimezone(timezone.utc).isoformat()
     return str(value)
+
+
+def _normalize_batch_id(value: str) -> str:
+    normalized = re.sub(r"[^A-Za-z0-9_-]+", "_", value)
+    normalized = re.sub(r"_+", "_", normalized)
+    return normalized.strip("_") or _utc_now().strftime("%Y%m%dT%H%M%SZ")
 
 
 def build_audit_event(stage: str, status: str, details: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -125,7 +134,12 @@ def _build_news_api_params(config: NewsPipelineConfig, api_key: str, since: date
     return params
 
 
-def _build_raw_news_article(item: Dict[str, Any], config: NewsPipelineConfig, published_at: datetime) -> Optional[RawNewsArticle]:
+def _build_raw_news_article(
+    item: Dict[str, Any],
+    config: NewsPipelineConfig,
+    published_at: datetime,
+    batch_id: str,
+) -> Optional[RawNewsArticle]:
     source = item.get("source") or {}
     source_name = _clean_text(source.get("name")) or "unknown"
     title = _clean_text(item.get("title"))
@@ -146,7 +160,7 @@ def _build_raw_news_article(item: Dict[str, Any], config: NewsPipelineConfig, pu
         published_at=published_at,
         fetched_at=_utc_now(),
         query=config.query,
-        batch_id=_utc_now().strftime("%Y%m%dT%H%M%SZ"),
+        batch_id=batch_id,
         language=config.language,
         raw_payload=item,
     )
@@ -166,6 +180,7 @@ def _append_incremental_articles(
     batch_articles: Sequence[Dict[str, Any]],
     config: NewsPipelineConfig,
     since: datetime,
+    batch_id: str,
 ) -> bool:
     stop_fetching = False
 
@@ -177,7 +192,7 @@ def _append_incremental_articles(
             stop_fetching = True
             break
 
-        article = _build_raw_news_article(item, config, published_at)
+        article = _build_raw_news_article(item, config, published_at, batch_id)
         if article is None:
             continue
         articles.append(article)
@@ -189,18 +204,20 @@ def fetch_incremental_articles(
     config: NewsPipelineConfig,
     api_key: str,
     since: datetime,
+    batch_id: Optional[str] = None,
     max_pages: int = 5,
 ) -> List[RawNewsArticle]:
     if not api_key:
         raise ValueError("NEWS_API_KEY is required to fetch NewsAPI articles.")
 
+    run_batch_id = _normalize_batch_id(batch_id or _utc_now().strftime("%Y%m%dT%H%M%SZ"))
     articles: List[RawNewsArticle] = []
     for page in range(1, max_pages + 1):
         batch_articles = _fetch_news_api_page(config, api_key, since, page)
         if not batch_articles:
             break
 
-        stop_fetching = _append_incremental_articles(articles, batch_articles, config, since)
+        stop_fetching = _append_incremental_articles(articles, batch_articles, config, since, run_batch_id)
         if stop_fetching or len(batch_articles) < config.page_size:
             break
 
@@ -300,16 +317,37 @@ def write_jsonl_to_gcs(bucket_name: str, object_name: str, rows: Sequence[Any]) 
     return f"gs://{bucket_name}/{object_name}"
 
 
+def _delete_existing_batch_rows(client: Any, table_id: str, batch_id: str) -> None:
+    if NotFound is not None:
+        try:
+            client.get_table(table_id)
+        except NotFound:
+            logger.info("Target table %s does not exist yet; skipping batch cleanup for %s", table_id, batch_id)
+            return
+
+    delete_sql = f"DELETE FROM `{table_id}` WHERE batch_id = @batch_id"
+    query_config = bigquery.QueryJobConfig(
+        query_parameters=[bigquery.ScalarQueryParameter("batch_id", "STRING", batch_id)]
+    )
+    delete_job = client.query(delete_sql, job_config=query_config)
+    delete_job.result()
+    logger.info("Removed existing rows for batch_id=%s from BigQuery table %s", batch_id, table_id)
+
+
 def load_jsonl_from_gcs_to_bigquery(
     gcs_uri: str,
     table_id: str,
     schema: Sequence[Dict[str, Any]],
+    batch_id: Optional[str] = None,
     write_disposition: str = "WRITE_APPEND",
 ) -> None:
     if bigquery is None:
         raise RuntimeError("google-cloud-bigquery is required to load news data into BigQuery.")
 
     client = bigquery.Client()
+    if batch_id:
+        _delete_existing_batch_rows(client, table_id, _normalize_batch_id(batch_id))
+
     job_config = bigquery.LoadJobConfig(
         schema=[bigquery.SchemaField(**field) for field in schema],
         source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
@@ -324,12 +362,16 @@ def load_rows_to_bigquery(
     rows: Sequence[Any],
     table_id: str,
     schema: Sequence[Dict[str, Any]],
+    batch_id: Optional[str] = None,
     write_disposition: str = "WRITE_APPEND",
 ) -> None:
     if bigquery is None:
         raise RuntimeError("google-cloud-bigquery is required to load news data into BigQuery.")
 
     client = bigquery.Client()
+    if batch_id:
+        _delete_existing_batch_rows(client, table_id, _normalize_batch_id(batch_id))
+
     job_config = bigquery.LoadJobConfig(
         schema=[bigquery.SchemaField(**field) for field in schema],
         write_disposition=write_disposition,

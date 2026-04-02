@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: stg_news_articles
+    description: Cleaned staging layer for raw news articles.
+    columns:
+      - name: article_id
+        tests:
+          - not_null
+          - unique
+      - name: title
+        tests:
+          - not_null
+      - name: source_name
+        tests:
+          - not_null
+      - name: url
+        tests:
+          - not_null
+      - name: published_at
+        tests:
+          - not_null
+      - name: batch_id
+        tests:
+          - not_null
