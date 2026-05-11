@@ -77,7 +77,7 @@ The Streamlit dashboard remains available for service checks and exploratory con
 1. **Install dependencies**: `pip install -r requirements.txt`
 2. **Set your API Key**: `export GEMINI_API_KEY=...` (or set in `.env`)
 3. **Configure News Pipeline Secrets**: set `NEWS_API_KEY`, `GCP_PROJECT_ID`, and BigQuery dataset/table variables. `NEWS_GCS_BUCKET` is optional.
-4. **Run the Dashboard**: `streamlit run dashboard.py`
+4. **Run the Dashboard**: `streamlit run dashboard.py` or `docker compose up dashboard` to expose it on port `8501`
 5. **(Optional) Run CLI Agent**: `python run_agent.py`
 6. **Trigger the News Pipeline**: run the `news_data_pipeline` DAG in Airflow.
 7. **Provision infrastructure**: `terraform -chdir=terraform init && terraform -chdir=terraform plan`
