@@ -1,9 +1,16 @@
 import streamlit as st
 import os
 import json
+import logging
 from ml.env import load_env
 
 load_env()
+
+import ddtrace.auto  # noqa: F401
+from ddtrace import tracer
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger("airkube.dashboard")
 
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from agent.graph import app
@@ -78,9 +85,11 @@ if view == "Chat":
 
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                inputs = {"messages": st.session_state.messages}
-                final_state = app.invoke(inputs)
-                response_msg = final_state["messages"][-1]
+                with tracer.trace("dashboard.agent_invoke", service="airkube-dashboard"):
+                    inputs = {"messages": st.session_state.messages}
+                    final_state = app.invoke(inputs)
+                    response_msg = final_state["messages"][-1]
+                logger.info("Agent responded to user query")
                 st.write(response_msg.content)
 
                 if isinstance(response_msg, AIMessage):
