@@ -88,14 +88,16 @@ if view == "Chat":
                 with tracer.trace("dashboard.agent_invoke", service="airkube-dashboard"):
                     inputs = {"messages": st.session_state.messages}
                     final_state = app.invoke(inputs)
-                    response_msg = final_state["messages"][-1]
+
+                # Find the last AI message that has actual text content
+                ai_messages = [
+                    m for m in final_state["messages"]
+                    if isinstance(m, AIMessage) and m.content
+                ]
+                response_msg = ai_messages[-1] if ai_messages else AIMessage(content="No response.")
                 logger.info("Agent responded to user query")
                 st.write(response_msg.content)
-
-                if isinstance(response_msg, AIMessage):
-                    st.session_state.messages.append(response_msg)
-                else:
-                    st.session_state.messages.append(AIMessage(content=str(response_msg.content)))
+                st.session_state.messages.append(response_msg)
 
 elif view == "Knowledge Graph":
     st.subheader("Graph Explorer")
