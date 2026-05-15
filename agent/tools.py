@@ -1,6 +1,7 @@
 from langchain.tools import tool
 from ml.kg_utils import get_connector
 import logging
+import os
 import requests
 import json
 
@@ -96,7 +97,8 @@ def check_system_health():
     
     # 1. Check Inference API
     try:
-        resp = requests.get("http://localhost:8000/health", timeout=2)
+        api_url = os.getenv("API_URL", "http://localhost:8000")
+        resp = requests.get(f"{api_url}/health", timeout=2)
         if resp.status_code == 200:
             health_status.append(f"[OK] Inference API: {resp.json()}")
         else:
