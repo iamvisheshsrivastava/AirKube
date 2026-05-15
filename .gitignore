@@ -2,9 +2,10 @@ __pycache__/
 *.pyc
 .env
 venv/
+.venv/
 .vscode/
 .DS_Store
-.github/agents/gcp-production-ops.agent.md
+.claude/
 logs/
 
 # Terraform generated state and local cache
