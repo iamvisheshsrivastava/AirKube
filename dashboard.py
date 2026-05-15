@@ -33,7 +33,11 @@ section[data-testid="stSidebar"] > div:first-child {
 }
 section[data-testid="stSidebar"] .stMarkdown p,
 section[data-testid="stSidebar"] .stMarkdown li,
-section[data-testid="stSidebar"] label { color: #cbd5e1 !important; }
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] .stRadio label,
+section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label p,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span { color: #e2e8f0 !important; }
 section[data-testid="stSidebar"] hr { border-color: rgba(255,255,255,0.1) !important; }
 section[data-testid="stSidebar"] .stButton > button {
     background: rgba(255,255,255,0.07) !important;
