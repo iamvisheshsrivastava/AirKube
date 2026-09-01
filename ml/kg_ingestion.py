@@ -26,7 +26,7 @@ def ingest_graph(extraction: ExtractionResult, model_version: str = "unknown"):
     """
     models_data = [d.dict() for d in extraction.models]
     if models_data:
-        connector.run_query(model_query, {"batch": models_data})
+        connector.run_write_query(model_query, {"batch": models_data})
 
     # Experiments
     experiment_query = """
@@ -38,7 +38,7 @@ def ingest_graph(extraction: ExtractionResult, model_version: str = "unknown"):
     """
     experiments_data = [e.dict() for e in extraction.experiments]
     if experiments_data:
-        connector.run_query(experiment_query, {"batch": experiments_data})
+        connector.run_write_query(experiment_query, {"batch": experiments_data})
         
     # Runs
     # Metrics and Parameters are stored as JSON strings or properties
@@ -54,7 +54,7 @@ def ingest_graph(extraction: ExtractionResult, model_version: str = "unknown"):
     # For now we assume standard driver map support.
     runs_data = [r.dict() for r in extraction.runs]
     if runs_data:
-        connector.run_query(run_query, {"batch": runs_data})
+        connector.run_write_query(run_query, {"batch": runs_data})
         
     # Deployments
     deployment_query = """
@@ -67,7 +67,7 @@ def ingest_graph(extraction: ExtractionResult, model_version: str = "unknown"):
     """
     deployments_data = [d.dict() for d in extraction.deployments]
     if deployments_data:
-        connector.run_query(deployment_query, {"batch": deployments_data})
+        connector.run_write_query(deployment_query, {"batch": deployments_data})
 
     # 2. Ingest Relationships
     logger.info("Ingesting relationships...")
@@ -79,7 +79,7 @@ def ingest_graph(extraction: ExtractionResult, model_version: str = "unknown"):
         SET r += $props,
             r.ingested_at = datetime()
         """
-        connector.run_query(query, {
+        connector.run_write_query(query, {
             "source_id": rel.source_id,
             "target_id": rel.target_id,
             "props": rel.properties

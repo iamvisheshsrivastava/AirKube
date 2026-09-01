@@ -12,6 +12,13 @@ from langchain_core.messages import HumanMessage, AIMessage
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("airkube.dashboard")
 
+# Cap how many recent chat messages are sent to the LLM on each turn. The
+# system prompt stays fixed/unbounded-free; only the conversational history
+# is sliding-window truncated so token cost/context usage don't grow
+# unbounded across a long session. Full history is still kept in
+# st.session_state.messages for display purposes.
+MAX_HISTORY_MESSAGES = 15
+
 st.set_page_config(
     page_title="AirKube · MLOps Platform",
     page_icon="✈️",
@@ -286,8 +293,12 @@ if view == "💬  Chat":
 
         with st.chat_message("assistant", avatar="✈️"):
             with st.spinner("Thinking…"):
+                # Sliding-window truncation: only send the most recent N messages
+                # to the agent, not the entire unbounded session history, to keep
+                # per-turn token cost/context usage bounded on long sessions.
+                recent_messages = st.session_state.messages[-MAX_HISTORY_MESSAGES:]
                 with tracer.trace("dashboard.agent_invoke", service="airkube-dashboard"):
-                    final_state = app.invoke({"messages": st.session_state.messages})
+                    final_state = app.invoke({"messages": recent_messages})
                 ai_msgs = [
                     m for m in final_state["messages"]
                     if isinstance(m, AIMessage) and m.content

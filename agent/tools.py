@@ -4,44 +4,94 @@ import logging
 import os
 import requests
 import json
+import time
+import uuid
 
 logger = logging.getLogger("agent_tools")
+
+def _trigger_airflow_dag(pipeline_name: str, parameters: dict = None) -> str:
+    """
+    Attempts to trigger a real Airflow DAG run via the Airflow REST API
+    (POST /api/v1/dags/{dag_id}/dagRuns).
+
+    Airflow connection details must be configured via env vars:
+      - AIRFLOW_BASE_URL (e.g. http://localhost:8080)
+      - AIRFLOW_USERNAME / AIRFLOW_PASSWORD
+
+    If Airflow isn't configured or isn't reachable, this returns an explicit,
+    honest "not triggered" message instead of fabricating a success response -
+    the caller must never claim a pipeline was started unless the Airflow API
+    actually confirmed it.
+    """
+    base_url = os.getenv("AIRFLOW_BASE_URL")
+    username = os.getenv("AIRFLOW_USERNAME")
+    password = os.getenv("AIRFLOW_PASSWORD")
+
+    if not base_url or not username or not password:
+        logger.warning(
+            f"Airflow trigger requested for '{pipeline_name}' but AIRFLOW_BASE_URL/"
+            f"AIRFLOW_USERNAME/AIRFLOW_PASSWORD are not configured. Not triggering."
+        )
+        return (
+            f"Pipeline trigger NOT performed for '{pipeline_name}': Airflow is not "
+            f"configured in this deployment (missing AIRFLOW_BASE_URL/AIRFLOW_USERNAME/"
+            f"AIRFLOW_PASSWORD). No DAG run was started."
+        )
+
+    dag_run_id = f"manual__{time.strftime('%Y-%m-%dT%H:%M:%S')}_{str(uuid.uuid4())[:8]}"
+    payload = {"dag_run_id": dag_run_id, "conf": parameters or {}}
+    url = f"{base_url.rstrip('/')}/api/v1/dags/{pipeline_name}/dagRuns"
+
+    try:
+        resp = requests.post(
+            url,
+            json=payload,
+            auth=(username, password),
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        real_run_id = data.get("dag_run_id", dag_run_id)
+        logger.info(f"Triggered Airflow DAG '{pipeline_name}', run id: {real_run_id}")
+        return (
+            f"Successfully triggered pipeline '{pipeline_name}'. "
+            f"Execution ID: {real_run_id}. Monitor status in Airflow UI."
+        )
+    except Exception as e:
+        logger.error(f"Failed to trigger Airflow DAG '{pipeline_name}': {e}")
+        return (
+            f"Pipeline trigger FAILED for '{pipeline_name}': could not reach the "
+            f"Airflow API ({str(e)}). No DAG run was started."
+        )
+
 
 @tool
 def trigger_ml_pipeline(pipeline_name: str = "enhanced_ml_pipeline", parameters: dict = None):
     """
-    Triggers an ML pipeline in Airflow.
-    
+    Triggers an ML pipeline in Airflow via the Airflow REST API.
+
     Args:
         pipeline_name (str): The name of the DAG ID to trigger. Defaults to 'enhanced_ml_pipeline'.
         parameters (dict): Optional JSON parameters to pass to the pipeline execution.
-        
+
     Returns:
-        str: execution_id of the triggered pipeline.
+        str: A message confirming the real Airflow execution ID, or an explicit
+        message stating the trigger was not performed (Airflow not configured
+        or unreachable). This never fabricates a success response.
     """
-    # In a real scenario, this would use the Airflow REST API.
-    # For this demo, we simulate the request.
-    import time
-    import uuid
-    
-    exec_id = f"manual__{time.strftime('%Y-%m-%dT%H:%M:%S')}_{str(uuid.uuid4())[:8]}"
-    logger.info(f"Triggering Airflow DAG '{pipeline_name}' with params: {parameters}")
-    
-    return f"Successfully triggered pipeline '{pipeline_name}'. Execution ID: {exec_id}. Monitor status in Airflow UI."
+    return _trigger_airflow_dag(pipeline_name, parameters)
 
 
 @tool
 def trigger_news_data_pipeline(pipeline_name: str = "news_data_pipeline", parameters: dict = None):
     """
-    Triggers the news ETL/ELT pipeline in Airflow.
+    Triggers the news ETL/ELT pipeline in Airflow via the Airflow REST API.
+
+    Returns a real Airflow execution ID on success, or an explicit message
+    stating the trigger was not performed (Airflow not configured or
+    unreachable). This never fabricates a success response.
     """
-    import time
-    import uuid
-
-    exec_id = f"manual__{time.strftime('%Y-%m-%dT%H:%M:%S')}_{str(uuid.uuid4())[:8]}"
-    logger.info(f"Triggering Airflow DAG '{pipeline_name}' with params: {parameters}")
-
-    return f"Successfully triggered pipeline '{pipeline_name}'. Execution ID: {exec_id}. Monitor status in Airflow UI."
+    return _trigger_airflow_dag(pipeline_name, parameters)
 
 @tool
 def get_kg_schema():
