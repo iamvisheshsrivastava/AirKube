@@ -1,6 +1,6 @@
 # AirKube
 
-An agentic MLOps platform that combines a **LangGraph + Gemini-powered AI agent**, a **Knowledge Graph** (Neo4j), an **ML inference API** (FastAPI), and a **news data pipeline** (Airflow + BigQuery) — all wired together in a Streamlit dashboard with Datadog observability.
+An agentic MLOps platform that combines a **LangGraph + OpenRouter (GLM-4.6)-powered AI agent**, a **Knowledge Graph** (Neo4j), an **ML inference API** (FastAPI), and a **news data pipeline** (Airflow + BigQuery) — all wired together in a Streamlit dashboard with Datadog observability.
 
 **Live demo:** https://airkube-dashboard-a4410b460d07.herokuapp.com/
 
@@ -12,7 +12,7 @@ The dashboard gives you three views:
 
 - **Chat** — talk to the AirKube agent. It can query the knowledge graph, trigger Airflow pipelines, and check system health.
 - **Knowledge Graph Explorer** — run Cypher queries directly against Neo4j to explore models, experiments, runs, and deployments.
-- **Extraction Playground** — paste any text and the agent extracts MLOps entities (models, datasets, experiments, deployments) using Gemini.
+- **Extraction Playground** — paste any text and the agent extracts MLOps entities (models, datasets, experiments, deployments) using OpenRouter (GLM-4.6).
 
 ---
 
@@ -26,7 +26,7 @@ The dashboard gives you three views:
                        │
           ┌────────────▼────────────┐
           │   LangGraph Agent       │
-          │   (Gemini 2.5 Flash)    │
+          │   (OpenRouter GLM-4.6)  │
           └──┬──────────┬───────────┘
              │          │
     ┌─────────▼──┐  ┌───▼──────────────┐
@@ -56,7 +56,7 @@ The dashboard gives you three views:
 
 | Layer | Technology |
 |---|---|
-| Agent | LangGraph, Gemini 2.5 Flash |
+| Agent | LangGraph, OpenRouter (GLM-4.6) |
 | Dashboard | Streamlit |
 | Inference API | FastAPI, scikit-learn |
 | Knowledge Graph | Neo4j |
@@ -126,7 +126,7 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# Fill in: GEMINI_API_KEY, NEO4J_URI/USER/PASSWORD, DD_API_KEY
+# Fill in: OPENROUTER_API_KEY, NEO4J_URI/USER/PASSWORD, DD_API_KEY
 ```
 
 ### 3. Start the dashboard
@@ -164,8 +164,8 @@ python run_agent.py
 
 | Variable | Required | Description |
 |---|---|---|
-| `GEMINI_API_KEY` | Yes | Google Gemini API key |
-| `GEMINI_MODEL` | No | Model name (default: `gemini-2.5-flash`) |
+| `OPENROUTER_API_KEY` | Yes | OpenRouter API key |
+| `OPENROUTER_MODEL` | No | Model name (default: `z-ai/glm-4.6`) |
 | `NEO4J_URI` | No | Neo4j connection URI (default: `bolt://localhost:7687`) |
 | `NEO4J_USER` | No | Neo4j username |
 | `NEO4J_PASSWORD` | No | Neo4j password |

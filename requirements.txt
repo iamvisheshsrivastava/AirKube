@@ -7,8 +7,7 @@ requests==2.31.0
 neo4j==5.17.0
 langchain>=0.1.0
 langchain-core>=0.3.0
-langchain-google-genai>=2.0.0
-google-generativeai>=0.8.0
+langchain-openai>=0.2.0
 langgraph>=0.0.26
 rich==13.7.0
 streamlit==1.31.0

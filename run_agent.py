@@ -49,11 +49,11 @@ async def _run_turn(chat_history):
     return final_state["messages"]
 
 async def main():
-    console.print(Panel.fit("[bold blue]AirKube Agentic CLI[/bold blue]\n[green]Powered by LangGraph & Gemini[/green]"))
-    
-    if not os.getenv("GEMINI_API_KEY"):
-        console.print("[bold red]WARNING: GEMINI_API_KEY not found in environment.[/bold red]")
-        console.print("Please set it via `set GEMINI_API_KEY=...` or `.env` file.")
+    console.print(Panel.fit("[bold blue]AirKube Agentic CLI[/bold blue]\n[green]Powered by LangGraph & OpenRouter (GLM-4.6)[/green]"))
+
+    if not os.getenv("OPENROUTER_API_KEY"):
+        console.print("[bold red]WARNING: OPENROUTER_API_KEY not found in environment.[/bold red]")
+        console.print("Please set it via `set OPENROUTER_API_KEY=...` or `.env` file.")
         # We don't exit, just let it fail naturally if they try to use it, or they might set it now.
     
     chat_history = [SystemMessage(content=SYSTEM_PROMPT)]

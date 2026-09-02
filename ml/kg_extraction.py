@@ -5,7 +5,8 @@ from ml.env import load_env
 
 load_env()
 
-import google.generativeai as genai
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
 from ml.kg_schemas import ExtractionResult
 
 logger = logging.getLogger("kg_extractor")
@@ -33,27 +34,32 @@ SCHEMA:
 
 def extract_entities_from_text(text: str) -> ExtractionResult:
     """
-    Uses Gemini to extract structured MLOps entities from unstructured text.
+    Uses an OpenRouter-hosted LLM to extract structured MLOps entities from
+    unstructured text.
     """
     logger.info(f"Extracting knowledge from text segment ({len(text)} chars)...")
-    
-    api_key = os.getenv("GEMINI_API_KEY")
+
+    api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
-        logger.warning("GEMINI_API_KEY not set. Returning mock data due to missing credentials.")
+        logger.warning("OPENROUTER_API_KEY not set. Returning mock data due to missing credentials.")
         return _get_mock_data()
 
     try:
         # Initialize LLM
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-2.5-flash"))
+        llm = ChatOpenAI(
+            model=os.getenv("OPENROUTER_MODEL", "z-ai/glm-4.6"),
+            api_key=api_key,
+            base_url="https://openrouter.ai/api/v1",
+            temperature=0,
+        )
 
         prompt = (
             f"{SYSTEM_PROMPT}\n\n"
             f"Text to extract from:\n{text}\n\n"
             "Return only valid JSON matching the schema."
         )
-        response = model.generate_content(prompt)
-        raw_text = getattr(response, "text", "") or str(response)
+        response = llm.invoke([HumanMessage(content=prompt)])
+        raw_text = getattr(response, "content", "") or str(response)
         logger.debug(f"LLM Raw Output: {raw_text}")
 
         cleaned_text = raw_text.strip()

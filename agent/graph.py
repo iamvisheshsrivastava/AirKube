@@ -5,7 +5,7 @@ from ml.env import load_env
 load_env()
 
 from langchain_core.messages import SystemMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 
@@ -55,13 +55,14 @@ tools = [
     get_kg_schema,
 ]
 
-api_key = os.getenv("GEMINI_API_KEY")
+api_key = os.getenv("OPENROUTER_API_KEY")
 if not api_key:
-    logger.warning("GEMINI_API_KEY not set — agent will fail on invocation.")
+    logger.warning("OPENROUTER_API_KEY not set — agent will fail on invocation.")
 
-llm = ChatGoogleGenerativeAI(
-    model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
-    google_api_key=api_key,
+llm = ChatOpenAI(
+    model=os.getenv("OPENROUTER_MODEL", "z-ai/glm-4.6"),
+    api_key=api_key,
+    base_url="https://openrouter.ai/api/v1",
     temperature=0,
 )
 

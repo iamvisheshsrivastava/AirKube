@@ -200,12 +200,12 @@ with st.sidebar:
     st.divider()
     st.markdown('<div class="section-label" style="color:#475569!important;padding:0 4px">Connections</div>', unsafe_allow_html=True)
 
-    gemini_ok = bool(os.getenv("GEMINI_API_KEY"))
+    openrouter_ok = bool(os.getenv("OPENROUTER_API_KEY"))
     neo4j_uri = os.getenv("NEO4J_URI", "")
     neo4j_ok = "databases.neo4j.io" in neo4j_uri or ("localhost" in neo4j_uri)
 
     st.markdown(
-        f"{'🟢' if gemini_ok else '🔴'} Gemini {'connected' if gemini_ok else 'not configured'}"
+        f"{'🟢' if openrouter_ok else '🔴'} OpenRouter {'connected' if openrouter_ok else 'not configured'}"
     )
     st.markdown(
         f"{'🟢' if neo4j_ok else '🔴'} Neo4j {'Aura' if 'databases.neo4j.io' in neo4j_uri else 'local' if neo4j_ok else 'not configured'}"
@@ -241,7 +241,7 @@ st.markdown("""
     <div class="hero-badges">
         <span class="badge">LangGraph Agent</span>
         <span class="badge">Neo4j Knowledge Graph</span>
-        <span class="badge">Gemini 2.5 Flash</span>
+        <span class="badge">OpenRouter (GLM-4.6)</span>
         <span class="badge">Apache Airflow</span>
         <span class="badge">Datadog APM</span>
     </div>
@@ -354,7 +354,7 @@ elif view == "🔗  Knowledge Graph":
 
 else:  # Extraction Playground
     st.markdown("### Knowledge Extraction Playground")
-    st.caption("Paste any text — Gemini extracts MLOps entities and structures them into the KG schema")
+    st.caption("Paste any text — OpenRouter (GLM-4.6) extracts MLOps entities and structures them into the KG schema")
 
     SAMPLE = """We trained ResNet50 v2 on dataset-coco-2024.
 The experiment 'Coco-Run-5' achieved 0.85 mAP.
@@ -370,7 +370,7 @@ Deployed to cluster 'prod-us-west' with 5 replicas."""
 
     if st.button("⚡  Extract Entities", type="primary"):
         from ml.kg_extraction import extract_entities_from_text
-        with st.spinner("Extracting with Gemini…"):
+        with st.spinner("Extracting with OpenRouter…"):
             try:
                 result = extract_entities_from_text(input_text)
                 st.success("Extraction complete!", icon="✅")
