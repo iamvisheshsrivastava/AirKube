@@ -11,7 +11,7 @@ An agentic MLOps platform that combines a **LangGraph + OpenRouter (GLM-4.6)-pow
 The dashboard gives you three views:
 
 - **Chat** — talk to the AirKube agent. It can query the knowledge graph, trigger Airflow pipelines, and check system health.
-- **Knowledge Graph Explorer** — run Cypher queries directly against Neo4j to explore models, experiments, runs, and deployments.
+- **Knowledge Graph Explorer** — run Cypher queries directly against Neo4j to explore models, experiments, runs, and deployments. Queries run in a read-only transaction (both here and from the agent's `query_knowledge_graph` tool), so write clauses like `CREATE`/`MERGE`/`DELETE` get rejected at the driver level, not just filtered out with a regex.
 - **Extraction Playground** — paste any text and the agent extracts MLOps entities (models, datasets, experiments, deployments) using OpenRouter (GLM-4.6).
 
 ---
@@ -169,9 +169,12 @@ python run_agent.py
 | `NEO4J_URI` | No | Neo4j connection URI (default: `bolt://localhost:7687`) |
 | `NEO4J_USER` | No | Neo4j username |
 | `NEO4J_PASSWORD` | No | Neo4j password |
+| `AIRFLOW_BASE_URL` | For pipeline triggers | Airflow REST API base URL, e.g. `http://localhost:8080` |
+| `AIRFLOW_USERNAME` / `AIRFLOW_PASSWORD` | For pipeline triggers | Airflow basic-auth credentials. Without all three Airflow vars, the agent's `trigger_ml_pipeline`/`trigger_news_data_pipeline` tools say so explicitly instead of pretending a DAG run started |
 | `NEWS_API_KEY` | For news pipeline | NewsAPI.org key |
 | `GCP_PROJECT_ID` | For news pipeline | GCP project ID |
 | `NEWS_GCS_BUCKET` | Optional | GCS bucket for raw news data |
+| `API_KEY` | Optional | Shared secret for the inference API. Unset by default (open, as on the public demo) — set it to require an `X-API-Key` header on `/predict`, `/batch-predict`, and the KG lookup routes |
 | `DD_API_KEY` | Production | Datadog API key |
 | `DD_APP_KEY` | Production | Datadog application key |
 | `DD_SITE` | Production | Datadog site (e.g. `datadoghq.com`) |
