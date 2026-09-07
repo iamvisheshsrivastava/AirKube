@@ -22,7 +22,12 @@ logging.basicConfig(
 logger = logging.getLogger("ml_service")
 
 app = FastAPI(title="AirKube Inference Service")
-app.add_middleware(TraceMiddleware, service="airkube-api")
+# Service name is set via DD_SERVICE (see .env.example) rather than passed
+# as a `service=` kwarg here: ddtrace 3.x removed that kwarg from
+# TraceMiddleware.__init__, which made this call raise TypeError on any
+# fresh install pulling ddtrace>=3 (requirements.txt has no upper bound).
+os.environ.setdefault("DD_SERVICE", "airkube-api")
+app.add_middleware(TraceMiddleware)
 
 # ---------------------------------------------------------
 # Optional shared-secret authentication

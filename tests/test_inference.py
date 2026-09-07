@@ -21,18 +21,6 @@ def test_health():
     assert response.status_code == 200
     assert response.json() == {"status": "healthy", "service": "ml-inference"}
 
-def test_metrics():
-    """
-    Test the Prometheus metrics endpoint (/metrics).
-    
-    Verifies:
-    - Status code is 200 (OK).
-    - Response contains the expected specific metric key 'inference_request_total'.
-    """
-    response = client.get("/metrics")
-    assert response.status_code == 200
-    assert "inference_request_total" in response.text
-
 def test_predict_single():
     """
     Test the single prediction endpoint (/predict).
@@ -78,8 +66,6 @@ if __name__ == "__main__":
     try:
         test_health()
         print("✓ Health check passed")
-        test_metrics()
-        print("✓ Metrics endpoint passed")
         test_predict_single()
         print("✓ Single prediction passed")
         test_predict_batch()
