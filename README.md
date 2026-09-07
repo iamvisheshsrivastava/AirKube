@@ -16,6 +16,24 @@ The dashboard gives you three views:
 
 ---
 
+## Screenshots
+
+Captured running the dashboard locally against a live Neo4j Aura instance (the public demo above currently points at a stale/unreachable Aura instance — see [#2](https://github.com/iamvisheshsrivastava/AirKube/issues/2) and [#3](https://github.com/iamvisheshsrivastava/AirKube/issues/3)).
+
+**Landing page** — the three-view navigation and connection status sidebar:
+
+![Landing page](docs/screenshots/landing.png)
+
+**Knowledge Graph Explorer** — a real Cypher query (`MATCH (n) RETURN n LIMIT 25`) run through the read-only driver. This particular run shows the honest failure mode when the configured Aura instance isn't reachable, rather than a raw traceback:
+
+![Knowledge Graph Explorer](docs/screenshots/kg_explorer.png)
+
+**Extraction Playground** — free text ready to be parsed into MLOps entities (model, experiment, deployment) via OpenRouter:
+
+![Extraction Playground](docs/screenshots/extraction_playground.png)
+
+---
+
 ## Architecture
 
 ```
