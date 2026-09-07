@@ -186,6 +186,7 @@ See [.env.example](.env.example) for the full list.
 ## Tests
 
 ```bash
+pip install -r requirements-dev.txt
 pytest tests/
 ```
 
