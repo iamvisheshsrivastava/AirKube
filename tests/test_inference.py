@@ -122,6 +122,35 @@ def test_require_api_key_source_uses_compare_digest():
     assert "!=" not in source
 
 
+def test_predict_short_input_returns_422():
+    """
+    Regression test for #23: POSTing /predict with a 2-element list must be
+    rejected by Pydantic validation (422), not surface as a 500 from
+    scikit-learn's feature-count check.
+    """
+    response = client.post("/predict", json={"data": [1.0, 2.0]})
+    assert response.status_code == 422
+
+
+def test_predict_long_input_returns_422():
+    """
+    Regression test for #23: POSTing /predict with a 5-element list must be
+    rejected by Pydantic validation (422), not surface as a 500.
+    """
+    response = client.post("/predict", json={"data": [1.0, 2.0, 3.0, 4.0, 5.0]})
+    assert response.status_code == 422
+
+
+def test_predict_batch_invalid_item_returns_422():
+    """
+    Regression test for #23: a batch item with a wrong-length data list must
+    also be rejected with 422 instead of a 500.
+    """
+    payload = {"inputs": [{"data": [1.0, 2.0]}]}
+    response = client.post("/batch-predict", json=payload)
+    assert response.status_code == 422
+
+
 if __name__ == "__main__":
     # Test runner
     print("Running tests...")
