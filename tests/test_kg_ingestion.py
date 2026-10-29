@@ -102,3 +102,33 @@ def test_record_deployment_missing_model_returns_error(monkeypatch):
 def test_slugify_produces_stable_lowercase_id():
     assert kg_ingestion._slugify("ResNet50", "v2", "prod") == "resnet50_v2_prod"
     assert kg_ingestion._slugify("My Model!!", "1.0") == "my_model_1_0"
+
+# ── #24: ingest_graph connector cleanup ─────────────────────────────────────
+
+def test_ingest_graph_closes_connector_on_success(monkeypatch):
+    conn = MagicMock()
+    monkeypatch.setattr(kg_ingestion, "get_connector", lambda: conn)
+
+    result = ExtractionResult(relationships=[
+        Relationship(source_id="a", target_id="b", type="SERVES"),
+    ])
+
+    kg_ingestion.ingest_graph(result)
+    conn.close.assert_called_once()
+
+
+def test_ingest_graph_closes_connector_on_write_error(monkeypatch):
+    """Regression test for #24: connector.close() must run even if run_write_query raises."""
+    conn = MagicMock()
+    conn.run_write_query.side_effect = RuntimeError("Neo4j write error")
+    monkeypatch.setattr(kg_ingestion, "get_connector", lambda: conn)
+
+    result = ExtractionResult(relationships=[
+        Relationship(source_id="a", target_id="b", type="SERVES"),
+    ])
+
+    with pytest.raises(RuntimeError, match="Neo4j write error"):
+        kg_ingestion.ingest_graph(result)
+
+    conn.close.assert_called_once()
+
