@@ -4,7 +4,7 @@ scikit-learn==1.4.0
 pydantic>=2.8.0
 python-multipart==0.0.6
 requests==2.31.0
-neo4j==5.17.0
+neo4j==6.4.1
 langchain>=0.1.0
 langchain-core>=0.3.0
 langchain-openai>=0.2.0
