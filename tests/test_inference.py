@@ -6,6 +6,8 @@ sys.path.append(os.getcwd())
 
 import importlib
 
+import pytest
+
 import ml.inference as inference_module
 from fastapi.testclient import TestClient
 
@@ -120,6 +122,115 @@ def test_require_api_key_source_uses_compare_digest():
     source = inspect.getsource(inference_module.require_api_key)
     assert "hmac.compare_digest" in source
     assert "!=" not in source
+
+
+class _FakeKgConnector:
+    """
+    Minimal stand-in for ml.kg_utils.Neo4jConnector used by the KG-backed
+    endpoints in ml.inference. Records every run_query call and whether
+    close() was reached, so tests can assert both the HTTP contract and
+    connector cleanup.
+    """
+
+    def __init__(self, result=None, error=None):
+        self._result = result
+        self._error = error
+        self.run_query_calls = []
+        self.closed = False
+
+    def run_query(self, query, parameters=None):
+        self.run_query_calls.append((query, parameters))
+        if self._error is not None:
+            raise self._error
+        return self._result
+
+    def close(self):
+        self.closed = True
+
+
+def _patch_kg_connector(monkeypatch, *, result=None, error=None):
+    """Monkeypatch ml.inference.get_connector and return the fake instance."""
+    connector = _FakeKgConnector(result=result, error=error)
+    monkeypatch.setattr(inference_module, "get_connector", lambda: connector)
+    return connector
+
+
+def _assert_connector_used_and_closed(connector):
+    assert connector.closed is True, "connector.close() must always run"
+    assert len(connector.run_query_calls) == 1
+
+
+# ---------------------------------------------------------
+# KG-backed endpoint coverage: /model/{name}/details and
+# /deployment/{deployment_id}/status (issue #25)
+# ---------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "url,identifier_key,identifier_value,response_key",
+    [
+        ("/model/iris-model/details", "model", "iris-model", "details"),
+        ("/deployment/dep-42/status", "deployment_id", "dep-42", "status"),
+    ],
+)
+def test_kg_endpoint_returns_200_with_expected_shape(
+    monkeypatch, url, identifier_key, identifier_value, response_key
+):
+    """
+    When the KG query returns rows, both endpoints answer 200 and echo the
+    queried identifier plus the raw rows under their response key.
+    """
+    kg_rows = [{"m": {"name": "iris-model", "version": "v2.1"}, "r": {"run_id": "run-1"}}]
+    connector = _patch_kg_connector(monkeypatch, result=kg_rows)
+
+    response = client.get(url)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body[identifier_key] == identifier_value
+    assert body[response_key] == kg_rows
+    _assert_connector_used_and_closed(connector)
+
+
+@pytest.mark.parametrize(
+    "url,expected_detail",
+    [
+        ("/model/ghost/details", "Model not found in Knowledge Graph"),
+        ("/deployment/ghost/status", "Deployment not found"),
+    ],
+)
+def test_kg_endpoint_returns_404_when_query_has_no_rows(monkeypatch, url, expected_detail):
+    """
+    An empty result set must surface as a clean 404, not as the generic 500
+    produced when the HTTPException was swallowed by the except block.
+    """
+    connector = _patch_kg_connector(monkeypatch, result=[])
+
+    response = client.get(url)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == expected_detail
+    _assert_connector_used_and_closed(connector)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "/model/iris-model/details",
+        "/deployment/dep-42/status",
+    ],
+)
+def test_kg_endpoint_returns_500_when_connector_raises(monkeypatch, url):
+    """
+    A connector failure (e.g. Neo4j unreachable) must still map to a 500 with
+    the exception message, and close() must run even on that path.
+    """
+    connector = _patch_kg_connector(monkeypatch, error=RuntimeError("boom"))
+
+    response = client.get(url)
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "boom"
+    _assert_connector_used_and_closed(connector)
 
 
 if __name__ == "__main__":

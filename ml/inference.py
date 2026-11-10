@@ -109,14 +109,16 @@ def get_model_details(name: str):
     """
     try:
         data = connector.run_query(query, {"name": name})
-        if not data:
-            raise HTTPException(status_code=404, detail="Model not found in Knowledge Graph")
-        return {"model": name, "details": data}
     except Exception as e:
         logger.error(f"KG Query failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         connector.close()
+    # The 404 check intentionally lives outside the try/except block: it must
+    # not be swallowed by the generic exception handler and re-raised as a 500.
+    if not data:
+        raise HTTPException(status_code=404, detail="Model not found in Knowledge Graph")
+    return {"model": name, "details": data}
 
 @app.get("/deployment/{deployment_id}/status", dependencies=[Depends(require_api_key)])
 def get_deployment_status(deployment_id: str):
@@ -130,11 +132,13 @@ def get_deployment_status(deployment_id: str):
     """
     try:
         data = connector.run_query(query, {"id": deployment_id})
-        if not data:
-            raise HTTPException(status_code=404, detail="Deployment not found")
-        return {"deployment_id": deployment_id, "status": data}
     except Exception as e:
         logger.error(f"KG Query failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         connector.close()
+    # See get_model_details: the 404 check must not be swallowed by the
+    # generic exception handler and re-raised as a 500.
+    if not data:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    return {"deployment_id": deployment_id, "status": data}
