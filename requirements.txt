@@ -1,7 +1,7 @@
 fastapi>=0.115.0
 uvicorn>=0.30.0
 scikit-learn==1.4.0
-pydantic>=2.8.0
+pydantic>=2.14.3
 python-multipart==0.0.6
 requests==2.31.0
 neo4j==5.17.0
