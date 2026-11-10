@@ -3,7 +3,7 @@ uvicorn>=0.30.0
 scikit-learn==1.4.0
 pydantic>=2.8.0
 python-multipart==0.0.6
-requests==2.31.0
+requests==2.34.2
 neo4j==5.17.0
 langchain>=0.1.0
 langchain-core>=0.3.0
